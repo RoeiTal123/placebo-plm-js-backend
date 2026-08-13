@@ -1,8 +1,8 @@
 const { dbConnection } = require("../../db_connection")
 const cloudinary = require("../../cloudinary");
 
-exports.postController = {
-    async getPosts(req, res) {
+exports.organizationController = {
+    async getOrganizations(req, res) {
         const db = require("../../db_connection");
 
         const filter = req.query.sort
@@ -38,9 +38,9 @@ exports.postController = {
             SELECT 
                 p.*,
                 COALESCE(json_agg(pl.user_id) FILTER (WHERE pl.user_id IS NOT NULL), '[]') AS "likedByUsers"
-            FROM posts p
-            LEFT JOIN post_likes pl 
-                ON p.id = pl.post_id
+            FROM organizations p
+            LEFT JOIN organization_likes pl 
+                ON p.id = pl.organization_id
             ${whereClause}
             GROUP BY p.id
             ORDER BY ${orderBy}
@@ -56,33 +56,33 @@ exports.postController = {
 
         }
     },
-    async getPost(req, res) {
-        const postid = req.params.postid
+    async getOrganization(req, res) {
+        const organizationid = req.params.organizationid
         const db = require("../../db_connection");
 
         try {
-            const posts = await db.query(`
+            const organizations = await db.query(`
             SELECT 
             p.*,
             COALESCE(
            json_agg(pl.user_id) FILTER (WHERE pl.user_id IS NOT NULL),
            '[]'::json
            ) AS likedByUsers
-            FROM posts p
-            LEFT JOIN post_likes pl 
-            ON p.id = pl.post_id
+            FROM organizations p
+            LEFT JOIN organization_likes pl 
+            ON p.id = pl.organization_id
             WHERE p.id = $1
             GROUP BY p.id;
-        `, [postid])
-            const post = posts.rows[0];
-            res.json(post)
+        `, [organizationid])
+            const organization = organizations.rows[0];
+            res.json(organization)
         }
         catch (err) {
             console.error(err)
             res.status(500).json({ error: err.message })
         }
     },
-    async addPost(req, res) {
+    async addOrganization(req, res) {
         const db = require("../../db_connection");
 
         const { user_id, title, description,
@@ -92,14 +92,14 @@ exports.postController = {
 
         try {
             const result = await db.query(
-                `INSERT INTO posts (user_id, title, description, media_type, media_url, created_at)
+                `INSERT INTO organizations (user_id, title, description, media_type, media_url, created_at)
                  VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
                 [user_id, title, description,
                     mediaType, mediaUrl, created_at])
 
             res.status(201).json({
                 success: true,
-                postid: result.rows[0].id
+                organizationid: result.rows[0].id
             })
         }
         catch (err) {
@@ -111,11 +111,11 @@ exports.postController = {
             })
         }
     },
-    async updatePost(req, res) {
+    async updateOrganization(req, res) {
         const db = require("../../db_connection");
         const cloudinary = require("cloudinary").v2;
 
-        const { postid } = req.params;
+        const { organizationid } = req.params;
 
         const {
             title,
@@ -125,16 +125,16 @@ exports.postController = {
         } = req.body;
 
         try {
-            // 1. get current post
+            // 1. get current organization
             const current = await db.query(
-                `SELECT media_url FROM posts WHERE id = $1`,
-                [postid]
+                `SELECT media_url FROM organizations WHERE id = $1`,
+                [organizationid]
             );
 
             if (current.rows.length === 0) {
                 return res.status(404).json({
                     success: false,
-                    message: "Post not found"
+                    message: "Organization not found"
                 });
             }
 
@@ -206,7 +206,7 @@ exports.postController = {
             // =========================
 
             await db.query(
-                `UPDATE posts
+                `UPDATE organizations
                 SET title = $1,
                 description = $2,
                 media_type = $3,
@@ -217,7 +217,7 @@ exports.postController = {
                     description,
                     hasMediaNow ? media_type : null,
                     hasMediaNow ? media_url : null,
-                    postid
+                    organizationid
                 ]
             );
 
@@ -237,20 +237,20 @@ exports.postController = {
             });
         }
     },
-    async deletePost(req, res) {
+    async deleteOrganization(req, res) {
         const db = require("../../db_connection");
 
-        const { postid } = req.params;
+        const { organizationid } = req.params;
 
         try {
-            const posts = await db.query(
-                "SELECT media_url FROM posts WHERE id = $1",
-                [postid]
+            const organizations = await db.query(
+                "SELECT media_url FROM organizations WHERE id = $1",
+                [organizationid]
             );
 
-            const post = posts.rows[0]
+            const organization = organizations.rows[0]
 
-            const mediaUrl = post.media_url;
+            const mediaUrl = organization.media_url;
 
             const extractPublicId = (url) => {
                 if (!url) return null;
@@ -268,25 +268,25 @@ exports.postController = {
             // delete media first
             if (publicId) {
                 await cloudinary.uploader.destroy(publicId, {
-                    resource_type: post.media_type
+                    resource_type: organization.media_type
                 });
             }
 
-            // delete all likes for this post
+            // delete all likes for this organization
             await db.query(
-                "DELETE FROM post_likes WHERE post_id = $1",
-                [postid]
+                "DELETE FROM organization_likes WHERE organization_id = $1",
+                [organizationid]
             );
 
-            // then delete post
+            // then delete organization
             await db.query(
-                "DELETE FROM posts WHERE id = $1",
-                [postid]
+                "DELETE FROM organizations WHERE id = $1",
+                [organizationid]
             );
 
             return res.json({
                 success: true,
-                deletedPost: true,
+                deletedOrganization: true,
                 deletedMedia: !!publicId
             });
 
@@ -301,21 +301,21 @@ exports.postController = {
     },
     async addLike(req, res) {
         const db = require("../../db_connection");
-        const { postid } = req.params;
+        const { organizationid } = req.params;
         const { userId } = req.body;
 
         await db.query(
-            `DELETE FROM post_likes WHERE post_id = $1`,
-            [postid]
+            `DELETE FROM organization_likes WHERE organization_id = $1`,
+            [organizationid]
         );
 
         try {
             // prevent duplicates (important!)
             await db.query(
-                `INSERT INTO post_likes (post_id, user_id)
+                `INSERT INTO organization_likes (organization_id, user_id)
              VALUES ($1, $2)
              ON CONFLICT DO NOTHING`,
-                [postid, userId]
+                [organizationid, userId]
             );
 
             res.json({ success: true });
@@ -326,14 +326,14 @@ exports.postController = {
     },
     async removeLike(req, res) {
         const db = require("../../db_connection");
-        const { postid } = req.params;
+        const { organizationid } = req.params;
         const { userId } = req.body;
 
         try {
             await db.query(
-                `DELETE FROM post_likes
-             WHERE post_id = $1 AND user_id = $2`,
-                [postid, userId]
+                `DELETE FROM organization_likes
+             WHERE organization_id = $1 AND user_id = $2`,
+                [organizationid, userId]
             );
 
             res.json({ success: true });

@@ -5,9 +5,17 @@ const fs = require("fs")
 const path = require("path")
 require("dotenv").config();
 
+const { productRouter } = require("./data management/router/organization-router.js")
 const { organizationRouter } = require("./data management/router/organization-router.js")
 const { userRouter } = require("./data management/router/user-router.js")
 const { supplierRouter } = require("./data management/router/supplier-router.js")
+const { materialRouter } = require("./data management/router/material-router.js")
+const { bom_lineRouter } = require("./data management/router/bom_line-router.js")
+const { orderRouter } = require("./data management/router/order-router.js")
+const { order_additional_costRouter } = require("./data management/router/order_additional_cost-router.js")
+const { order_lineRouter } = require("./data management/router/order_line-router.js")
+const { attachmentRouter } = require("./data management/router/attachment-router.js")
+const { audit_logRouter } = require("./data management/router/audit_log-router.js")
 
 process.on("uncaughtException", (err) => {
     console.error("UNCAUGHT: ", err);
@@ -29,15 +37,16 @@ app.use(cors({
   credentials: true
 }));
 
+app.use("/api/products", productRouter)
 app.use("/api/orgainzations", organizationRouter)
 app.use("/api/users", userRouter)
 app.use("/api/suppliers", supplierRouter)
-app.use("/api/materials", locationRouter)
-app.use("/api/bom_lines", locationRouter)
-app.use("/api/orders", locationRouter)
-app.use("/api/order_additional_cost", locationRouter)
-app.use("/api/order_lines", locationRouter)
-app.use("/api/attachments", locationRouter)
-app.use("/api/audit_logs", locationRouter)
+app.use("/api/materials", materialRouter)
+app.use("/api/bom_lines", bom_lineRouter)
+app.use("/api/orders", orderRouter)
+app.use("/api/order_additional_cost", order_additional_costRouter)
+app.use("/api/order_lines", order_lineRouter)
+app.use("/api/attachments", attachmentRouter)
+app.use("/api/audit_logs", audit_logRouter)
 
 app.listen(process.env.PORT || 3000);
