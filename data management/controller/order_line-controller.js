@@ -57,7 +57,8 @@ exports.order_lineRouter = {
             product_id,
             color,
             size,
-            quantity
+            quantity,
+            destination
         } = req.body;
 
         try {
@@ -69,9 +70,10 @@ exports.order_lineRouter = {
                 product_id,
                 color,
                 size,
-                quantity
+                quantity,
+                destination
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *`,
                 [
                     id,
@@ -80,7 +82,8 @@ exports.order_lineRouter = {
                     product_id,
                     color,
                     size,
-                    quantity
+                    quantity,
+                    destination
                 ]
             );
 
@@ -105,7 +108,8 @@ exports.order_lineRouter = {
             product_id,
             color,
             size,
-            quantity
+            quantity,
+            destination
         } = req.body;
 
         try {
@@ -116,8 +120,9 @@ exports.order_lineRouter = {
                 product_id = $2,
                 color = $3,
                 size = $4,
-                quantity = $5
-             WHERE id = $6
+                quantity = $5,
+                destination = $6
+             WHERE id = $7
              RETURNING *`,
                 [
                     order_id,
@@ -125,6 +130,7 @@ exports.order_lineRouter = {
                     color,
                     size,
                     quantity,
+                    destination,
                     orderlineid
                 ]
             );

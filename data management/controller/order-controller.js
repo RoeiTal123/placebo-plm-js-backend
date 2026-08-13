@@ -70,14 +70,14 @@ exports.orderController = {
         const { orderid } = req.params;
 
         try {
-            const result = await db.query(
+            const orderResult = await db.query(
                 `SELECT *
              FROM orders
              WHERE id = $1`,
                 [orderid]
             );
 
-            const order = result.rows[0];
+            const order = orderResult.rows[0];
 
             if (!order) {
                 return res.status(404).json({
@@ -85,7 +85,28 @@ exports.orderController = {
                 });
             }
 
-            res.json(order);
+            const linesResult = await db.query(
+                `SELECT *
+             FROM order_lines
+             WHERE order_id = $1
+             ORDER BY id`,
+                [orderid]
+            );
+
+            const costsResult = await db.query(
+                `SELECT *
+             FROM order_additional_costs
+             WHERE order_id = $1
+             ORDER BY sort_order ASC, id`,
+                [orderid]
+            );
+
+            res.json({
+                ...order,
+                lines: linesResult.rows,
+                additional_costs: costsResult.rows
+            });
+
         } catch (err) {
             console.error(err);
 

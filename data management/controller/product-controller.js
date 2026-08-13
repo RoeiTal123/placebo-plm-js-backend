@@ -78,14 +78,14 @@ exports.productController = {
             style_code,
             sku,
             category,
+            season,
             colors,
             sizes,
             pricing_multiplier,
             selling_price,
             currency,
             notes,
-            status,
-            spam
+            status
         } = req.body;
 
         try {
@@ -97,14 +97,14 @@ exports.productController = {
                 style_code,
                 sku,
                 category,
+                season,
                 colors,
                 sizes,
                 pricing_multiplier,
                 selling_price,
                 currency,
                 notes,
-                status,
-                spam
+                status
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7,
@@ -118,14 +118,14 @@ exports.productController = {
                     style_code,
                     sku,
                     category,
+                    season,
                     colors,
                     sizes,
                     pricing_multiplier,
                     selling_price,
                     currency,
                     notes,
-                    status,
-                    spam
+                    status
                 ]
             );
 
@@ -151,14 +151,14 @@ exports.productController = {
             style_code,
             sku,
             category,
+            season,
             colors,
             sizes,
             pricing_multiplier,
             selling_price,
             currency,
             notes,
-            status,
-            spam
+            status
         } = req.body;
 
         try {
@@ -169,14 +169,14 @@ exports.productController = {
                 style_code = $2,
                 sku = $3,
                 category = $4,
-                colors = $5,
-                sizes = $6,
-                pricing_multiplier = $7,
-                selling_price = $8,
-                currency = $9,
-                notes = $10,
-                status = $11,
-                spam = $12
+                season = $5,
+                colors = $6,
+                sizes = $7,
+                pricing_multiplier = $8,
+                selling_price = $9,
+                currency = $10,
+                notes = $11,
+                status = $12
              WHERE id = $13
              RETURNING *`,
                 [
@@ -184,6 +184,7 @@ exports.productController = {
                     style_code,
                     sku,
                     category,
+                    season,
                     colors,
                     sizes,
                     pricing_multiplier,
@@ -191,7 +192,6 @@ exports.productController = {
                     currency,
                     notes,
                     status,
-                    spam,
                     productid
                 ]
             );
@@ -203,11 +203,14 @@ exports.productController = {
                 });
             }
 
-            return res.status(200).json(result.rows[0]);
+            res.status(200).json({
+                success: true,
+                product: result.rows[0]
+            });
         } catch (err) {
             console.error(err);
 
-            return res.status(500).json({
+            res.status(500).json({
                 success: false,
                 error: err.message
             });

@@ -86,14 +86,16 @@ exports.materialController = {
             id,
             org_id,
             name,
+            color,
+            color_hex,
             category,
             supplier_id,
             unit_cost,
             currency,
             unit_of_measure,
+            minimum_order_quantity,
             notes,
-            status,
-            spam
+            status
         } = req.body;
 
         try {
@@ -102,29 +104,36 @@ exports.materialController = {
                 id,
                 org_id,
                 name,
+                color,
+                color_hex,
                 category,
                 supplier_id,
                 unit_cost,
                 currency,
                 unit_of_measure,
+                minimum_order_quantity,
                 notes,
-                status,
-                spam
+                status
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7,
+                $8, $9, $10, $11, $12, $13
+            )
             RETURNING *`,
                 [
                     id,
                     org_id,
                     name,
+                    color,
+                    color_hex,
                     category,
                     supplier_id,
                     unit_cost,
                     currency,
                     unit_of_measure,
+                    minimum_order_quantity,
                     notes,
-                    status,
-                    spam
+                    status
                 ]
             );
 
@@ -147,14 +156,16 @@ exports.materialController = {
 
         const {
             name,
+            color,
+            color_hex,
             category,
             supplier_id,
             unit_cost,
             currency,
             unit_of_measure,
+            minimum_order_quantity,
             notes,
-            status,
-            spam
+            status
         } = req.body;
 
         try {
@@ -162,26 +173,30 @@ exports.materialController = {
                 `UPDATE materials
              SET
                 name = $1,
-                category = $2,
-                supplier_id = $3,
-                unit_cost = $4,
-                currency = $5,
-                unit_of_measure = $6,
-                notes = $7,
-                status = $8,
-                spam = $9
-             WHERE id = $10
+                color = $2,
+                color_hex = $3,
+                category = $4,
+                supplier_id = $5,
+                unit_cost = $6,
+                currency = $7,
+                unit_of_measure = $8,
+                minimum_order_quantity = $9,
+                notes = $10,
+                status = $11
+             WHERE id = $12
              RETURNING *`,
                 [
                     name,
+                    color,
+                    color_hex,
                     category,
                     supplier_id,
                     unit_cost,
                     currency,
                     unit_of_measure,
+                    minimum_order_quantity,
                     notes,
                     status,
-                    spam,
                     materialid
                 ]
             );
@@ -193,7 +208,7 @@ exports.materialController = {
                 });
             }
 
-            return res.status(200).json({
+            res.status(200).json({
                 success: true,
                 material: result.rows[0]
             });
