@@ -84,7 +84,8 @@ exports.productController = {
             selling_price,
             currency,
             notes,
-            status
+            status,
+            spam
         } = req.body;
 
         try {
@@ -102,11 +103,12 @@ exports.productController = {
                 selling_price,
                 currency,
                 notes,
-                status
+                status,
+                spam
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7,
-                $8, $9, $10, $11, $12, $13
+                $8, $9, $10, $11, $12, $13, $14
             )
             RETURNING *`,
                 [
@@ -122,13 +124,16 @@ exports.productController = {
                     selling_price,
                     currency,
                     notes,
-                    status
+                    status,
+                    spam
                 ]
             );
 
-            res.status(201).json(result.rows[0]);
-        }
-        catch (err) {
+            res.status(201).json({
+                success: true,
+                product: result.rows[0]
+            });
+        } catch (err) {
             console.error(err);
 
             res.status(500).json({
@@ -139,7 +144,6 @@ exports.productController = {
     },
     async updateProduct(req, res) {
         const db = require("../../db_connection");
-
         const { productid } = req.params;
 
         const {
@@ -153,7 +157,8 @@ exports.productController = {
             selling_price,
             currency,
             notes,
-            status
+            status,
+            spam
         } = req.body;
 
         try {
@@ -170,8 +175,9 @@ exports.productController = {
                 selling_price = $8,
                 currency = $9,
                 notes = $10,
-                status = $11
-             WHERE id = $12
+                status = $11,
+                spam = $12
+             WHERE id = $13
              RETURNING *`,
                 [
                     name,
@@ -185,6 +191,7 @@ exports.productController = {
                     currency,
                     notes,
                     status,
+                    spam,
                     productid
                 ]
             );
@@ -197,7 +204,6 @@ exports.productController = {
             }
 
             return res.status(200).json(result.rows[0]);
-
         } catch (err) {
             console.error(err);
 

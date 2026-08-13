@@ -5,8 +5,8 @@ const fs = require("fs")
 const path = require("path")
 require("dotenv").config();
 
-const { productRouter } = require("./data management/router/organization-router.js")
-const { organizationRouter } = require("./data management/router/organization-router.js")
+const { productRouter } = require("./data management/router/organisation-router.js")
+const { organisationRouter } = require("./data management/router/organisation-router.js")
 const { userRouter } = require("./data management/router/user-router.js")
 const { supplierRouter } = require("./data management/router/supplier-router.js")
 const { materialRouter } = require("./data management/router/material-router.js")
@@ -38,7 +38,7 @@ app.use(cors({
 }));
 
 app.use("/api/products", productRouter)
-app.use("/api/orgainzations", organizationRouter)
+app.use("/api/orgainsations", organisationRouter)
 app.use("/api/users", userRouter)
 app.use("/api/suppliers", supplierRouter)
 app.use("/api/materials", materialRouter)

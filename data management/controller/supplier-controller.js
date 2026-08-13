@@ -89,7 +89,8 @@ exports.supplierController = {
             lead_time_days,
             payment_terms,
             notes,
-            status
+            status,
+            spam
         } = req.body;
 
         try {
@@ -106,11 +107,12 @@ exports.supplierController = {
                 lead_time_days,
                 payment_terms,
                 notes,
-                status
+                status,
+                spam
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6,
-                $7, $8, $9, $10, $11, $12
+                $1, $2, $3, $4, $5, $6, $7,
+                $8, $9, $10, $11, $12, $13
             )
             RETURNING *`,
                 [
@@ -125,7 +127,8 @@ exports.supplierController = {
                     lead_time_days,
                     payment_terms,
                     notes,
-                    status
+                    status,
+                    spam
                 ]
             );
 
@@ -144,7 +147,6 @@ exports.supplierController = {
     },
     async updateSupplier(req, res) {
         const db = require("../../db_connection");
-
         const { supplierid } = req.params;
 
         const {
@@ -157,7 +159,8 @@ exports.supplierController = {
             lead_time_days,
             payment_terms,
             notes,
-            status
+            status,
+            spam
         } = req.body;
 
         try {
@@ -173,8 +176,9 @@ exports.supplierController = {
                 lead_time_days = $7,
                 payment_terms = $8,
                 notes = $9,
-                status = $10
-             WHERE id = $11
+                status = $10,
+                spam = $11
+             WHERE id = $12
              RETURNING *`,
                 [
                     name,
@@ -187,6 +191,7 @@ exports.supplierController = {
                     payment_terms,
                     notes,
                     status,
+                    spam,
                     supplierid
                 ]
             );
@@ -202,11 +207,10 @@ exports.supplierController = {
                 success: true,
                 supplier: result.rows[0]
             });
-
         } catch (err) {
             console.error(err);
 
-            return res.status(500).json({
+            res.status(500).json({
                 success: false,
                 error: err.message
             });

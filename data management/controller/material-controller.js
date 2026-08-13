@@ -1,5 +1,4 @@
 const { dbConnection } = require("../../db_connection")
-const cloudinary = require("../../cloudinary");
 
 exports.materialController = {
     async getMaterials(req, res) {
@@ -93,7 +92,8 @@ exports.materialController = {
             currency,
             unit_of_measure,
             notes,
-            status
+            status,
+            spam
         } = req.body;
 
         try {
@@ -108,12 +108,10 @@ exports.materialController = {
                 currency,
                 unit_of_measure,
                 notes,
-                status
+                status,
+                spam
             )
-            VALUES (
-                $1, $2, $3, $4, $5,
-                $6, $7, $8, $9, $10
-            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING *`,
                 [
                     id,
@@ -125,7 +123,8 @@ exports.materialController = {
                     currency,
                     unit_of_measure,
                     notes,
-                    status
+                    status,
+                    spam
                 ]
             );
 
@@ -144,7 +143,6 @@ exports.materialController = {
     },
     async updateMaterial(req, res) {
         const db = require("../../db_connection");
-
         const { materialid } = req.params;
 
         const {
@@ -155,7 +153,8 @@ exports.materialController = {
             currency,
             unit_of_measure,
             notes,
-            status
+            status,
+            spam
         } = req.body;
 
         try {
@@ -169,8 +168,9 @@ exports.materialController = {
                 currency = $5,
                 unit_of_measure = $6,
                 notes = $7,
-                status = $8
-             WHERE id = $9
+                status = $8,
+                spam = $9
+             WHERE id = $10
              RETURNING *`,
                 [
                     name,
@@ -181,6 +181,7 @@ exports.materialController = {
                     unit_of_measure,
                     notes,
                     status,
+                    spam,
                     materialid
                 ]
             );
@@ -196,11 +197,10 @@ exports.materialController = {
                 success: true,
                 material: result.rows[0]
             });
-
         } catch (err) {
             console.error(err);
 
-            return res.status(500).json({
+            res.status(500).json({
                 success: false,
                 error: err.message
             });

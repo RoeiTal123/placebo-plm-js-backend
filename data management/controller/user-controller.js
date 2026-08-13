@@ -3,194 +3,311 @@ const db = require("../../db_connection");
 exports.userController = {
 
   async getUsers(req, res) {
+    const db = require("../../db_connection");
+
     try {
-      const result = await db.query(`
-        SELECT 
-          id, 
-          username, 
-          fullname, 
-          email, 
-          created_at, 
-          birthday, 
-          profile_pic_url, 
-          user_type 
-        FROM users 
-        ORDER BY created_at DESC
-      `);
+      const result = await db.query(
+        `SELECT
+                id,
+                org_id,
+                email,
+                name,
+                role,
+                supplier_id,
+                status,
+                last_login_at,
+                created_at,
+                spam
+             FROM users
+             ORDER BY created_at DESC`
+      );
 
       res.json(result.rows);
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: err.message });
-    }
-  },
 
-  async addUser(req, res) {
-
-    const { username, password, fullname, email, birthday, profile_pic_url, user_type } = req.body;
-
-    if (!birthday) {
-      return res.status(400).json({
-        success: false,
-        error: "Birthday is required."
+      res.status(500).json({
+        error: err.message
       });
     }
+  }, async getUser(req, res) {
+    const db = require("../../db_connection");
+    const { userid } = req.params;
 
     try {
       const result = await db.query(
-        `INSERT INTO users (username, password, fullname, email, birthday, profile_pic_url, user_type) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7) 
-         RETURNING id`,
-        [username, password, fullname, email, birthday, profile_pic_url, user_type || 'user']
+        `SELECT
+                id,
+                org_id,
+                email,
+                name,
+                role,
+                supplier_id,
+                status,
+                last_login_at,
+                created_at,
+                spam
+             FROM users
+             WHERE id = $1`,
+        [userid]
       );
 
-      const newUserId = result.rows[0].id;
+      const user = result.rows[0];
 
-      res.status(201).json({ 
-        success: true, 
-        message: "User registered successfully!",
-        userId: newUserId 
-      });
-
-    } catch (err) {
-      console.error("Database Error:", err);
-
-      if (err.code === '23505') {
-        return res.status(400).json({ 
-          success: false, 
-          error: "Username or Email is already registered." 
+      if (!user) {
+        return res.status(404).json({
+          error: "User not found"
         });
       }
 
-      res.status(500).json({ 
-        success: false, 
-        error: "Internal server error during registration." 
+      res.json(user);
+    } catch (err) {
+      console.error(err);
+
+      res.status(500).json({
+        error: err.message
       });
     }
-  },
+  }, async addUser(req, res) {
+    const db = require("../../db_connection");
 
-    async login(req, res) {
-    const { username, password } = req.body;
+    const {
+      id,
+      org_id,
+      email,
+      password_hash,
+      name,
+      role,
+      supplier_id,
+      status,
+      last_login_at,
+      created_at,
+      spam
+    } = req.body;
 
     try {
       const result = await db.query(
-        `SELECT id, username, password, fullname, email, profile_pic_url, user_type 
-         FROM users 
-         WHERE username = $1`,
-        [username]
+        `INSERT INTO users (
+                id,
+                org_id,
+                email,
+                password_hash,
+                name,
+                role,
+                supplier_id,
+                status,
+                last_login_at,
+                created_at,
+                spam
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, $6,
+                $7, $8, $9, $10, $11
+            )
+            RETURNING *`,
+        [
+          id,
+          org_id,
+          email,
+          password_hash,
+          name,
+          role,
+          supplier_id,
+          status,
+          last_login_at,
+          created_at,
+          spam
+        ]
+      );
+
+      res.status(201).json({
+        success: true,
+        user: result.rows[0]
+      });
+    } catch (err) {
+      console.error(err);
+
+      res.status(500).json({
+        success: false,
+        error: err.message
+      });
+    }
+  }, async login(req, res) {
+    const { email, password } = req.body;
+
+    try {
+      const result = await db.query(
+        `SELECT
+                id,
+                org_id,
+                email,
+                password_hash,
+                name,
+                role,
+                supplier_id,
+                status,
+                last_login_at,
+                created_at,
+                spam
+             FROM users
+             WHERE lower(email) = lower($1)`,
+        [email]
       );
 
       if (result.rows.length === 0) {
-        return res.status(401).json({ 
-          success: false, 
-          error: "Invalid username or password." 
+        return res.status(401).json({
+          success: false,
+          error: "Invalid email or password."
         });
       }
 
       const user = result.rows[0];
 
-      if (user.password !== password) {
-        return res.status(401).json({ 
-          success: false, 
-          error: "Invalid username or password." 
+      /*
+       * TEMPORARY:
+       * Password is currently stored/compared as plain text.
+       *
+       * When password hashing is implemented, install bcrypt:
+       *
+       * npm install bcrypt
+       *
+       * Then:
+       *
+       * const bcrypt = require("bcrypt");
+       *
+       * const passwordMatches = await bcrypt.compare(
+       *     password,
+       *     user.password_hash
+       * );
+       *
+       * if (!passwordMatches) {
+       *     return res.status(401).json({
+       *         success: false,
+       *         error: "Invalid email or password."
+       *     });
+       * }
+       */
+
+      if (user.password_hash !== password) {
+        return res.status(401).json({
+          success: false,
+          error: "Invalid email or password."
         });
       }
 
-      delete user.password;
+      // Don't ever send the password/password hash back to the frontend.
+      delete user.password_hash;
+
+      // Update last login time
+      await db.query(
+        `UPDATE users
+             SET last_login_at = NOW()
+             WHERE id = $1`,
+        [user.id]
+      );
 
       res.json(user);
 
     } catch (err) {
       console.error("Login Controller Error:", err);
-      res.status(500).json({ 
-        success: false, 
-        error: "Internal server error during login." 
+
+      res.status(500).json({
+        success: false,
+        error: "Internal server error during login."
       });
     }
-  },
-  async updateUser(req, res) {
-    const { id } = req.params;
-    const { username, fullname, email, birthday, profile_pic_url, user_type } = req.body;
+  }, async updateUser(req, res) {
+    const db = require("../../db_connection");
+    const { userid } = req.params;
+
+    const {
+      email,
+      password_hash,
+      name,
+      role,
+      supplier_id,
+      status,
+      last_login_at,
+      spam
+    } = req.body;
 
     try {
-      // 1. Verify user exists
-      const checkUser = await db.query("SELECT id FROM users WHERE id = $1", [id]);
-      if (checkUser.rows.length === 0) {
-        return res.status(404).json({ success: false, message: "User not found" });
-      }
-
-      // 2. Update properties (keeping original values if not provided in req.body)
       const result = await db.query(
-        `UPDATE users 
-         SET username = COALESCE($1, username),
-             fullname = COALESCE($2, fullname),
-             email = COALESCE($3, email),
-             birthday = COALESCE($4, birthday),
-             profile_pic_url = COALESCE($5, profile_pic_url),
-             user_type = COALESCE($6, user_type)
-         WHERE id = $7
-         RETURNING id, username, fullname, email, birthday, profile_pic_url, user_type`,
-        [username, fullname, email, birthday, profile_pic_url, user_type, id]
+        `UPDATE users
+             SET
+                email = $1,
+                password_hash = $2,
+                name = $3,
+                role = $4,
+                supplier_id = $5,
+                status = $6,
+                last_login_at = $7,
+                spam = $8
+             WHERE id = $9
+             RETURNING *`,
+        [
+          email,
+          password_hash,
+          name,
+          role,
+          supplier_id,
+          status,
+          last_login_at,
+          spam,
+          userid
+        ]
       );
 
-      res.json({
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found"
+        });
+      }
+
+      return res.status(200).json({
         success: true,
-        message: "User updated successfully",
         user: result.rows[0]
       });
-
     } catch (err) {
-      console.error("Update User Error:", err);
-      if (err.code === '23505') {
-        return res.status(400).json({ success: false, error: "Username or Email already exists." });
-      }
-      res.status(500).json({ success: false, error: "Internal server error during update." });
-    }
-  },
+      console.error(err);
 
-  async deleteUser(req, res) {
-    const { id } = req.params; // Using URL parameter /:id for safety
+      return res.status(500).json({
+        success: false,
+        error: err.message
+      });
+    }
+  }, async deleteUser(req, res) {
+    const db = require("../../db_connection");
+    const { userid } = req.params;
 
     try {
-      // Start a transaction to ensure all cascading deletes succeed together
-      await db.query("BEGIN");
+      const result = await db.query(
+        `DELETE FROM users
+             WHERE id = $1
+             RETURNING *`,
+        [userid]
+      );
 
-      // 1. Delete likes associated with the user
-      await db.query("DELETE FROM post_likes WHERE user_id = $1", [id]);
-
-      // 2. Find all posts belonging to this user to delete their associated likes
-      const userPosts = await db.query("SELECT id FROM posts WHERE user_id = $1", [id]);
-      const postIds = userPosts.rows.map(row => row.id);
-
-      if (postIds.length > 0) {
-        // Delete likes on posts that this user created
-        await db.query("DELETE FROM post_likes WHERE post_id = ANY($1)", [postIds]);
-        // Delete the posts themselves
-        await db.query("DELETE FROM posts WHERE user_id = $1", [id]);
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found"
+        });
       }
 
-      // 3. Delete locations owned by this user
-      await db.query("DELETE FROM locations WHERE owner_id = $1", [id]);
-
-      // 4. Finally, delete the user profile
-      const userDeleteResult = await db.query("DELETE FROM users WHERE id = $1 RETURNING id", [id]);
-
-      if (userDeleteResult.rows.length === 0) {
-        await db.query("ROLLBACK");
-        return res.status(404).json({ success: false, message: "User not found" });
-      }
-
-      await db.query("COMMIT");
-
-      res.json({
+      return res.status(200).json({
         success: true,
-        message: "User and all associated data deleted successfully."
+        deletedUser: true,
+        user: result.rows[0]
       });
-
     } catch (err) {
-      await db.query("ROLLBACK");
-      console.error("Delete User Error:", err);
-      res.status(500).json({ success: false, error: "Internal server error during deletion." });
+      console.error(err);
+
+      return res.status(500).json({
+        success: false,
+        error: err.message
+      });
     }
   }
 };

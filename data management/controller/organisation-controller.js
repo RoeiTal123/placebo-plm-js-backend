@@ -1,14 +1,14 @@
 const { dbConnection } = require("../../db_connection")
 
-exports.order_lineRouter = {
-    async getOrder_lines(req, res) {
+exports.organizationController = {
+    async getOrganisations(req, res) {
         const db = require("../../db_connection");
 
         try {
             const result = await db.query(
                 `SELECT *
-             FROM order_lines
-             ORDER BY order_id`
+             FROM organisations
+             ORDER BY created_at DESC`
             );
 
             res.json(result.rows);
@@ -19,27 +19,28 @@ exports.order_lineRouter = {
                 error: err.message
             });
         }
-    }, async getOrder_line(req, res) {
+    },
+    async getOrganisation(req, res) {
         const db = require("../../db_connection");
-        const { orderlineid } = req.params;
+        const { organisationid } = req.params;
 
         try {
             const result = await db.query(
                 `SELECT *
-             FROM order_lines
+             FROM organisations
              WHERE id = $1`,
-                [orderlineid]
+                [organisationid]
             );
 
-            const orderLine = result.rows[0];
+            const organisation = result.rows[0];
 
-            if (!orderLine) {
+            if (!organisation) {
                 return res.status(404).json({
-                    error: "Order line not found"
+                    error: "Organisation not found"
                 });
             }
 
-            res.json(orderLine);
+            res.json(organisation);
         } catch (err) {
             console.error(err);
 
@@ -47,46 +48,35 @@ exports.order_lineRouter = {
                 error: err.message
             });
         }
-    }, async addOrder_line(req, res) {
+    },
+    async addOrganisation(req, res) {
         const db = require("../../db_connection");
 
         const {
             id,
-            org_id,
-            order_id,
-            product_id,
-            color,
-            size,
-            quantity
+            name,
+            base_currency
         } = req.body;
 
         try {
             const result = await db.query(
-                `INSERT INTO order_lines (
+                `INSERT INTO organisations (
                 id,
-                org_id,
-                order_id,
-                product_id,
-                color,
-                size,
-                quantity
+                name,
+                base_currency
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            VALUES ($1, $2, $3)
             RETURNING *`,
                 [
                     id,
-                    org_id,
-                    order_id,
-                    product_id,
-                    color,
-                    size,
-                    quantity
+                    name,
+                    base_currency
                 ]
             );
 
             res.status(201).json({
                 success: true,
-                orderLine: result.rows[0]
+                organisation: result.rows[0]
             });
         } catch (err) {
             console.error(err);
@@ -96,86 +86,79 @@ exports.order_lineRouter = {
                 error: err.message
             });
         }
-    }, async updateOrder_line(req, res) {
+    },
+    async updateOrganisation(req, res) {
         const db = require("../../db_connection");
-        const { orderlineid } = req.params;
+        const { organisationid } = req.params;
 
         const {
-            order_id,
-            product_id,
-            color,
-            size,
-            quantity
+            name,
+            base_currency
         } = req.body;
 
         try {
             const result = await db.query(
-                `UPDATE order_lines
+                `UPDATE organisations
              SET
-                order_id = $1,
-                product_id = $2,
-                color = $3,
-                size = $4,
-                quantity = $5
-             WHERE id = $6
+                name = $1,
+                base_currency = $2
+             WHERE id = $3
              RETURNING *`,
                 [
-                    order_id,
-                    product_id,
-                    color,
-                    size,
-                    quantity,
-                    orderlineid
+                    name,
+                    base_currency,
+                    organisationid
                 ]
             );
 
             if (result.rows.length === 0) {
                 return res.status(404).json({
                     success: false,
-                    message: "Order line not found"
+                    message: "Organisation not found"
                 });
             }
 
             return res.status(200).json({
                 success: true,
-                orderLine: result.rows[0]
+                organisation: result.rows[0]
             });
         } catch (err) {
             console.error(err);
 
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
                 error: err.message
             });
         }
-    }, async deleteOrder_line(req, res) {
+    },
+    async deleteOrganisation(req, res) {
         const db = require("../../db_connection");
-        const { orderlineid } = req.params;
+        const { organisationid } = req.params;
 
         try {
             const result = await db.query(
-                `DELETE FROM order_lines
+                `DELETE FROM organisations
              WHERE id = $1
              RETURNING *`,
-                [orderlineid]
+                [organisationid]
             );
 
             if (result.rows.length === 0) {
                 return res.status(404).json({
                     success: false,
-                    message: "Order line not found"
+                    message: "Organisation not found"
                 });
             }
 
             return res.status(200).json({
                 success: true,
-                deletedOrderLine: true,
-                orderLine: result.rows[0]
+                deletedOrganisation: true,
+                organisation: result.rows[0]
             });
         } catch (err) {
             console.error(err);
 
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
                 error: err.message
             });
