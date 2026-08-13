@@ -16,6 +16,7 @@ const { order_additional_costRouter } = require("./data management/router/order_
 const { order_lineRouter } = require("./data management/router/order_line-router.js")
 const { attachmentRouter } = require("./data management/router/attachment-router.js")
 const { audit_logRouter } = require("./data management/router/audit_log-router.js")
+const { currencyRouter } = require("./data management/router/currency-router.js")
 
 process.on("uncaughtException", (err) => {
     console.error("UNCAUGHT: ", err);
@@ -48,5 +49,6 @@ app.use("/api/order_additional_cost", order_additional_costRouter)
 app.use("/api/order_lines", order_lineRouter)
 app.use("/api/attachments", attachmentRouter)
 app.use("/api/audit_logs", audit_logRouter)
+app.use("/api/currencys", currencyRouter)
 
 app.listen(process.env.PORT || 3000);
