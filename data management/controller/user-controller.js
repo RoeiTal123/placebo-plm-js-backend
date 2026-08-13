@@ -1,4 +1,5 @@
 const db = require("../../db_connection");
+const argon2 = require("argon2");
 
 exports.userController = {
 
@@ -75,17 +76,19 @@ exports.userController = {
       id,
       org_id,
       email,
-      password_hash,
+      password,
       name,
       role,
       supplier_id,
-      status,
-      last_login_at,
-      created_at,
-      spam
+      status
     } = req.body;
 
     try {
+      // Hash password before storing it
+      const password_hash = await argon2.hash(password, {
+        type: argon2.argon2id
+      });
+
       const result = await db.query(
         `INSERT INTO users (
                 id,
@@ -95,16 +98,11 @@ exports.userController = {
                 name,
                 role,
                 supplier_id,
-                status,
-                last_login_at,
-                created_at,
-                spam
+                status
             )
-            VALUES (
-                $1, $2, $3, $4, $5, $6,
-                $7, $8, $9, $10, $11
-            )
-            RETURNING *`,
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id, org_id, email, name, role, supplier_id, status,
+                      last_login_at, created_at`,
         [
           id,
           org_id,
@@ -113,10 +111,7 @@ exports.userController = {
           name,
           role,
           supplier_id,
-          status,
-          last_login_at,
-          created_at,
-          spam
+          status
         ]
       );
 
@@ -124,6 +119,7 @@ exports.userController = {
         success: true,
         user: result.rows[0]
       });
+
     } catch (err) {
       console.error(err);
 
@@ -133,7 +129,7 @@ exports.userController = {
       });
     }
   }, async login(req, res) {
-    const { email, password } = req.body;
+    const { name, password } = req.body;
 
     try {
       const result = await db.query(
@@ -147,58 +143,39 @@ exports.userController = {
                 supplier_id,
                 status,
                 last_login_at,
-                created_at,
-                spam
+                created_at
              FROM users
-             WHERE lower(email) = lower($1)`,
-        [email]
+             WHERE org_id = $1
+             AND LOWER(name) = LOWER($4)`,
+        [/* authenticated org_id */, name]
       );
 
       if (result.rows.length === 0) {
         return res.status(401).json({
           success: false,
-          error: "Invalid email or password."
+          error: "Invalid name or password."
         });
       }
 
       const user = result.rows[0];
 
-      /*
-       * TEMPORARY:
-       * Password is currently stored/compared as plain text.
-       *
-       * When password hashing is implemented, install bcrypt:
-       *
-       * npm install bcrypt
-       *
-       * Then:
-       *
-       * const bcrypt = require("bcrypt");
-       *
-       * const passwordMatches = await bcrypt.compare(
-       *     password,
-       *     user.password_hash
-       * );
-       *
-       * if (!passwordMatches) {
-       *     return res.status(401).json({
-       *         success: false,
-       *         error: "Invalid email or password."
-       *     });
-       * }
-       */
+      // Verify plaintext password against Argon2id hash
+      const validPassword = await argon2.verify(
+        user.password_hash,
+        password
+      );
 
-      if (user.password_hash !== password) {
+      if (!validPassword) {
         return res.status(401).json({
           success: false,
-          error: "Invalid email or password."
+          error: "Invalid name or password."
         });
       }
 
-      // Don't ever send the password/password hash back to the frontend.
+      // Don't send password_hash to the frontend
       delete user.password_hash;
 
-      // Update last login time
+      // Update last login
       await db.query(
         `UPDATE users
              SET last_login_at = NOW()
