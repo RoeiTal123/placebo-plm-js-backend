@@ -4,9 +4,9 @@ const { currencyController } = require("../controller/currency-controller.js")
 const currencyRouter = new Router()
 
 currencyRouter.get("/", currencyController.getCurrencies)
-currencyRouter.get("/:currencyname", currencyController.getCurrency)
+currencyRouter.get("/:currency", currencyController.getCurrency)
 // currencyRouter.post("/", currencyController.addCurrency)
-currencyRouter.put("/:currencyname", currencyController.updateCurrencies)
-currencyRouter.delete("/:currencyname", currencyController.deleteCurrency)
+currencyRouter.put("/:currency", currencyController.updateCurrencies)
+currencyRouter.delete("/:currency", currencyController.deleteCurrency)
 
 module.exports = { currencyRouter }
