@@ -1,6 +1,6 @@
 const { dbConnection } = require("../../db_connection")
 
-exports.organizationController = {
+exports.organisationController = {
     async getOrganisations(req, res) {
         const db = require("../../db_connection");
 

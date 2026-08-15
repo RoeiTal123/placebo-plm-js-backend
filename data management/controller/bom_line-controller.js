@@ -1,13 +1,14 @@
 const { dbConnection } = require("../../db_connection")
 
-exports.bom_lineRouter = {
+exports.bom_lineController = {
     async getBom_lines(req, res) {
         const db = require("../../db_connection");
 
         const {
             product = "",
             material = "",
-            supplier = ""
+            supplier = "",
+            material_id = ""
         } = req.query;
 
         const conditions = [];
@@ -29,6 +30,12 @@ exports.bom_lineRouter = {
         if (supplier) {
             values.push(`%${supplier}%`);
             conditions.push(`s.name ILIKE $${values.length}`);
+        }
+
+        // Exact material ID
+        if (material_id) {
+            values.push(material_id);
+            conditions.push(`b.material_id = $${values.length}`);
         }
 
         const whereClause = conditions.length

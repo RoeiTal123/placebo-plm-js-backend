@@ -1,6 +1,6 @@
 const { dbConnection } = require("../../db_connection")
 
-exports.order_lineRouter = {
+exports.order_lineController = {
     async getOrder_lines(req, res) {
         const db = require("../../db_connection");
 

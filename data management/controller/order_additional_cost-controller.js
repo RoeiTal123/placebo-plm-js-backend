@@ -1,6 +1,6 @@
 const { dbConnection } = require("../../db_connection")
 
-exports.order_additional_costRouter = {
+exports.order_additional_costController = {
     async getOrder_additional_costs(req, res) {
         const db = require("../../db_connection");
 

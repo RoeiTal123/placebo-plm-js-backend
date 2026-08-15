@@ -1,5 +1,4 @@
 const { dbConnection } = require("../../db_connection")
-const cloudinary = require("../../cloudinary");
 
 exports.supplierController = {
     async getSuppliers(req, res) {

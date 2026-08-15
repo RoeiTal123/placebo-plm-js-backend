@@ -1,6 +1,6 @@
 const { dbConnection } = require("../../db_connection")
 
-exports.audit_logRouter = {
+exports.audit_logController = {
     async getAudit_logs(req, res) {
         const db = require("../../db_connection");
 
