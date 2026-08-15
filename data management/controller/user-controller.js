@@ -17,8 +17,7 @@ exports.userController = {
                 supplier_id,
                 status,
                 last_login_at,
-                created_at,
-                spam
+                created_at
              FROM users
              ORDER BY created_at DESC`
       );
@@ -46,8 +45,7 @@ exports.userController = {
                 supplier_id,
                 status,
                 last_login_at,
-                created_at,
-                spam
+                created_at
              FROM users
              WHERE id = $1`,
         [userid]
@@ -71,28 +69,42 @@ exports.userController = {
     }
   }, async addUser(req, res) {
     const db = require("../../db_connection");
+    const argon2 = require("argon2");
 
     const {
-      id,
       org_id,
+      username,
       email,
       password,
-      name,
-      role,
-      supplier_id,
-      status
+      name
     } = req.body;
 
     try {
-      // Hash password before storing it
+      if (!username || !email || !password) {
+        return res.status(400).json({
+          success: false,
+          error: "Username, email and password are required"
+        });
+      }
+
+      // Testing organization
+      const finalOrgId =
+        org_id || "dfd05209-13f2-54ca-879a-085dd2bde69d";
+
+      // Default values for signup
+      const role = "viewer";
+      const status = "active";
+      const supplier_id = null;
+
+      // Hash password
       const password_hash = await argon2.hash(password, {
         type: argon2.argon2id
       });
 
       const result = await db.query(
         `INSERT INTO users (
-                id,
                 org_id,
+                username,
                 email,
                 password_hash,
                 name,
@@ -100,12 +112,23 @@ exports.userController = {
                 supplier_id,
                 status
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING id, org_id, email, name, role, supplier_id, status,
-                      last_login_at, created_at`,
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8
+            )
+            RETURNING
+                id,
+                org_id,
+                username,
+                email,
+                name,
+                role,
+                supplier_id,
+                status,
+                last_login_at,
+                created_at`,
         [
-          id,
-          org_id,
+          finalOrgId,
+          username,
           email,
           password_hash,
           name,
@@ -129,13 +152,27 @@ exports.userController = {
       });
     }
   }, async login(req, res) {
-    const { name, password } = req.body;
+    const db = require("../../db_connection");
+    const argon2 = require("argon2");
+
+    const {
+      username,
+      password
+    } = req.body;
 
     try {
+      if (!username || !password) {
+        return res.status(400).json({
+          success: false,
+          error: "Username and password are required"
+        });
+      }
+
       const result = await db.query(
         `SELECT
                 id,
                 org_id,
+                username,
                 email,
                 password_hash,
                 name,
@@ -145,21 +182,27 @@ exports.userController = {
                 last_login_at,
                 created_at
              FROM users
-             WHERE org_id = $1
-             AND LOWER(name) = LOWER($4)`,
-        [/* authenticated org_id */, name]
+             WHERE LOWER(username) = LOWER($1)
+             LIMIT 1`,
+        [username]
       );
 
       if (result.rows.length === 0) {
         return res.status(401).json({
           success: false,
-          error: "Invalid name or password."
+          error: "Invalid username or password"
         });
       }
 
       const user = result.rows[0];
 
-      // Verify plaintext password against Argon2id hash
+      if (user.status !== "active") {
+        return res.status(403).json({
+          success: false,
+          error: "User account is not active"
+        });
+      }
+
       const validPassword = await argon2.verify(
         user.password_hash,
         password
@@ -168,29 +211,32 @@ exports.userController = {
       if (!validPassword) {
         return res.status(401).json({
           success: false,
-          error: "Invalid name or password."
+          error: "Invalid username or password"
         });
       }
-
-      // Don't send password_hash to the frontend
-      delete user.password_hash;
 
       // Update last login
       await db.query(
         `UPDATE users
-             SET last_login_at = NOW()
+             SET last_login_at = now()
              WHERE id = $1`,
         [user.id]
       );
 
-      res.json(user);
+      // Never send the password hash to the frontend
+      delete user.password_hash;
+
+      res.json({
+        success: true,
+        user
+      });
 
     } catch (err) {
-      console.error("Login Controller Error:", err);
+      console.error(err);
 
       res.status(500).json({
         success: false,
-        error: "Internal server error during login."
+        error: err.message
       });
     }
   }, async updateUser(req, res) {
@@ -205,7 +251,6 @@ exports.userController = {
       supplier_id,
       status,
       last_login_at,
-      spam
     } = req.body;
 
     try {
@@ -219,8 +264,7 @@ exports.userController = {
                 supplier_id = $5,
                 status = $6,
                 last_login_at = $7,
-                spam = $8
-             WHERE id = $9
+             WHERE id = $8
              RETURNING *`,
         [
           email,
@@ -230,7 +274,6 @@ exports.userController = {
           supplier_id,
           status,
           last_login_at,
-          spam,
           userid
         ]
       );

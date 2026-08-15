@@ -71,8 +71,9 @@ exports.productController = {
     async addProduct(req, res) {
         const db = require("../../db_connection");
 
+        const DEFAULT_ORG_ID = "dfd05209-13f2-54ca-879a-085dd2bde69d";
+
         const {
-            id,
             org_id,
             name,
             style_code,
@@ -88,10 +89,11 @@ exports.productController = {
             status
         } = req.body;
 
+        const finalOrgId = org_id || DEFAULT_ORG_ID;
+
         try {
             const result = await db.query(
                 `INSERT INTO products (
-                id,
                 org_id,
                 name,
                 style_code,
@@ -108,12 +110,11 @@ exports.productController = {
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7,
-                $8, $9, $10, $11, $12, $13, $14
+                $8, $9, $10, $11, $12, $13
             )
             RETURNING *`,
                 [
-                    id,
-                    org_id,
+                    finalOrgId,
                     name,
                     style_code,
                     sku,
@@ -133,6 +134,7 @@ exports.productController = {
                 success: true,
                 product: result.rows[0]
             });
+
         } catch (err) {
             console.error(err);
 

@@ -5,6 +5,7 @@ exports.audit_logController = {
         const db = require("../../db_connection");
 
         const {
+            search = "",
             user = "",
             action = "",
             entity_type = ""
@@ -12,6 +13,19 @@ exports.audit_logController = {
 
         const conditions = [];
         const values = [];
+
+        // Search filter
+        if (search) {
+            values.push(`%${search.toLowerCase()}%`);
+
+            conditions.push(`
+            (
+                LOWER(a.id::text) LIKE $${values.length}
+                OR LOWER(a.entity_type) LIKE $${values.length}
+                OR LOWER(a.action) LIKE $${values.length}
+            )
+        `);
+        }
 
         // User filter
         if (user) {
@@ -26,11 +40,6 @@ exports.audit_logController = {
         }
 
         // Action filter
-        // The frontend sends values such as:
-        // "material created"
-        // "product edited"
-        // "order updated"
-        // "user role changed"
         if (action) {
             const actionValue = action.toLowerCase();
 
@@ -64,8 +73,7 @@ exports.audit_logController = {
 
         try {
             const result = await db.query(
-                `SELECT
-                a.*
+                `SELECT a.*
              FROM audit_logs a
              ${whereClause}
              ORDER BY a.created_at DESC`,
@@ -119,8 +127,7 @@ exports.audit_logController = {
             entity_id,
             before,
             after,
-            ip_address,
-            created_at
+            ip_address
         } = req.body;
 
         try {
@@ -133,10 +140,9 @@ exports.audit_logController = {
                 entity_id,
                 before,
                 after,
-                ip_address,
-                created_at
+                ip_address
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *`,
                 [
                     org_id,
@@ -146,8 +152,7 @@ exports.audit_logController = {
                     entity_id,
                     before,
                     after,
-                    ip_address,
-                    created_at
+                    ip_address
                 ]
             );
 
