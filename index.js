@@ -5,7 +5,7 @@ const fs = require("fs")
 const path = require("path")
 require("dotenv").config();
 
-const { productRouter } = require("./data management/router/organisation-router.js")
+const { productRouter } = require("./data management/router/product-router.js")
 const { organisationRouter } = require("./data management/router/organisation-router.js")
 const { userRouter } = require("./data management/router/user-router.js")
 const { supplierRouter } = require("./data management/router/supplier-router.js")
@@ -40,10 +40,14 @@ app.use(cors({
   credentials: true
 }));
 
-// app.use("/api/products", productRouter)
-app.get("/api/products", (req, res) => {
-    res.json(products);
+app.listen(process.env.PORT || 5173, () => {
+    console.log(`Server running on port ${process.env.PORT || 5173}`);
 });
+
+// app.get("/api/products", (req, res) => {
+//     res.json(products);
+// });
+app.use("/api/products", productRouter)
 app.use("/api/orgainsations", organisationRouter)
 app.use("/api/users", userRouter)
 app.use("/api/suppliers", supplierRouter)
@@ -55,5 +59,3 @@ app.use("/api/order_lines", order_lineRouter)
 app.use("/api/audit_logs", audit_logRouter)
 app.use("/api/currencies", currencyRouter)
 // app.use("/api/attachments", attachmentRouter)
-
-app.listen(process.env.PORT || 5173);
