@@ -112,7 +112,6 @@ exports.bom_lineController = {
         const db = require("../../db_connection");
 
         const {
-            org_id,
             product_id,
             material_id,
             quantity_per_unit,
@@ -124,7 +123,6 @@ exports.bom_lineController = {
         try {
             const result = await db.query(
                 `INSERT INTO bom_lines (
-                org_id,
                 product_id,
                 material_id,
                 quantity_per_unit,
@@ -132,10 +130,9 @@ exports.bom_lineController = {
                 notes,
                 sort_order
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING *`,
                 [
-                    org_id,
                     product_id,
                     material_id,
                     quantity_per_unit,

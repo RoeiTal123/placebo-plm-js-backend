@@ -83,7 +83,6 @@ exports.supplierController = {
 
         const {
             id,
-            org_id,
             name,
             country,
             contact_name,
@@ -101,7 +100,6 @@ exports.supplierController = {
             const result = await db.query(
                 `INSERT INTO suppliers (
                 id,
-                org_id,
                 name,
                 country,
                 contact_name,
@@ -116,12 +114,11 @@ exports.supplierController = {
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7,
-                $8, $9, $10, $11, $12, $13
+                $8, $9, $10, $11, $12
             )
             RETURNING *`,
                 [
                     id,
-                    org_id,
                     name,
                     country,
                     contact_name,

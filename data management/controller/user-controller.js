@@ -10,7 +10,6 @@ exports.userController = {
       const result = await db.query(
         `SELECT
                 id,
-                org_id,
                 email,
                 name,
                 role,
@@ -38,7 +37,6 @@ exports.userController = {
       const result = await db.query(
         `SELECT
                 id,
-                org_id,
                 email,
                 name,
                 role,
@@ -72,7 +70,6 @@ exports.userController = {
     const argon2 = require("argon2");
 
     const {
-      org_id,
       username,
       email,
       password,
@@ -87,9 +84,6 @@ exports.userController = {
         });
       }
 
-      // Testing organization
-      const finalOrgId =
-        org_id || "dfd05209-13f2-54ca-879a-085dd2bde69d";
 
       // Default values for signup
       const role = "viewer";
@@ -103,7 +97,6 @@ exports.userController = {
 
       const result = await db.query(
         `INSERT INTO users (
-                org_id,
                 username,
                 email,
                 password_hash,
@@ -113,11 +106,10 @@ exports.userController = {
                 status
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8
+                $1, $2, $3, $4, $5, $6, $7
             )
             RETURNING
                 id,
-                org_id,
                 username,
                 email,
                 name,
@@ -127,7 +119,6 @@ exports.userController = {
                 last_login_at,
                 created_at`,
         [
-          finalOrgId,
           username,
           email,
           password_hash,
@@ -171,7 +162,6 @@ exports.userController = {
       const result = await db.query(
         `SELECT
                 id,
-                org_id,
                 username,
                 email,
                 password_hash,

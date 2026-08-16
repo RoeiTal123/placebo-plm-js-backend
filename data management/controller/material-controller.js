@@ -83,7 +83,6 @@ exports.materialController = {
         const db = require("../../db_connection");
 
         const {
-            org_id,
             name,
             color,
             color_hex,
@@ -100,7 +99,6 @@ exports.materialController = {
         try {
             const result = await db.query(
                 `INSERT INTO materials (
-                org_id,
                 name,
                 color,
                 color_hex,
@@ -115,11 +113,10 @@ exports.materialController = {
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6,
-                $7, $8, $9, $10, $11, $12
+                $7, $8, $9, $10, $11
             )
             RETURNING *`,
                 [
-                    org_id,
                     name,
                     color,
                     color_hex,

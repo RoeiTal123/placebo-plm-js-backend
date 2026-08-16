@@ -120,7 +120,6 @@ exports.audit_logController = {
         const db = require("../../db_connection");
 
         const {
-            org_id,
             user_id,
             action,
             entity_type,
@@ -133,7 +132,6 @@ exports.audit_logController = {
         try {
             const result = await db.query(
                 `INSERT INTO audit_logs (
-                org_id,
                 user_id,
                 action,
                 entity_type,
@@ -142,10 +140,9 @@ exports.audit_logController = {
                 after,
                 ip_address
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *`,
                 [
-                    org_id,
                     user_id,
                     action,
                     entity_type,

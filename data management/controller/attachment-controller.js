@@ -8,7 +8,6 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-
 const attachmentController = {
 
     async getAttachments(req, res) {
@@ -31,8 +30,6 @@ const attachmentController = {
             });
         }
     },
-
-
     async getAttachment(req, res) {
         const db = require("../../db_connection");
 
@@ -60,8 +57,6 @@ const attachmentController = {
             });
         }
     },
-
-
     async addAttachment(req, res) {
         const db = require("../../db_connection");
 
@@ -73,7 +68,6 @@ const attachmentController = {
             }
 
             const {
-                org_id,
                 entity_type,
                 entity_id,
                 uploaded_by
@@ -116,7 +110,7 @@ const attachmentController = {
                         cloudinary.uploader.upload_stream(
                             {
                                 folder:
-                                    `placebo/${org_id}/${entity_type}/${entity_id}`,
+                                    `placebo/${entity_type}/${entity_id}`,
 
                                 resource_type: "image"
                             },
@@ -141,7 +135,6 @@ const attachmentController = {
 
             const result = await db.query(
                 `INSERT INTO attachments (
-                    org_id,
                     entity_type,
                     entity_id,
                     file_name,
@@ -152,11 +145,10 @@ const attachmentController = {
                 )
                 VALUES (
                     $1, $2, $3, $4,
-                    $5, $6, $7, $8
+                    $5, $6, $7
                 )
                 RETURNING *`,
                 [
-                    org_id,
                     entity_type,
                     entity_id,
                     req.file.originalname,
@@ -181,8 +173,6 @@ const attachmentController = {
             });
         }
     },
-
-
     async updateAttachment(req, res) {
         const db = require("../../db_connection");
 
@@ -225,8 +215,6 @@ const attachmentController = {
             });
         }
     },
-
-
     async deleteAttachment(req, res) {
         const db = require("../../db_connection");
 

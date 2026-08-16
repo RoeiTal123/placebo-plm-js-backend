@@ -1,17 +1,61 @@
-const { dbConnection } = require("../../db_connection")
+const { dbConnection } = require("../../db_connection");
 
 exports.order_lineController = {
+
     async getOrder_lines(req, res) {
         const db = require("../../db_connection");
+
+        const {
+            order_id = "",
+            product_id = "",
+            color = "",
+            size = "",
+            destination = ""
+        } = req.query;
+
+        const conditions = [];
+        const values = [];
+
+        if (order_id) {
+            values.push(order_id);
+            conditions.push(`ol.order_id = $${values.length}`);
+        }
+
+        if (product_id) {
+            values.push(product_id);
+            conditions.push(`ol.product_id = $${values.length}`);
+        }
+
+        if (color) {
+            values.push(`%${color}%`);
+            conditions.push(`ol.color ILIKE $${values.length}`);
+        }
+
+        if (size) {
+            values.push(`%${size}%`);
+            conditions.push(`ol.size ILIKE $${values.length}`);
+        }
+
+        if (destination) {
+            values.push(`%${destination}%`);
+            conditions.push(`ol.destination ILIKE $${values.length}`);
+        }
+
+        const whereClause = conditions.length
+            ? `WHERE ${conditions.join(" AND ")}`
+            : "";
 
         try {
             const result = await db.query(
                 `SELECT *
-             FROM order_lines
-             ORDER BY order_id`
+                 FROM order_lines ol
+                 ${whereClause}
+                 ORDER BY ol.order_id, ol.id`,
+                values
             );
 
             res.json(result.rows);
+
         } catch (err) {
             console.error(err);
 
@@ -19,15 +63,16 @@ exports.order_lineController = {
                 error: err.message
             });
         }
-    }, async getOrder_line(req, res) {
+    },
+    async getOrder_line(req, res) {
         const db = require("../../db_connection");
         const { orderlineid } = req.params;
 
         try {
             const result = await db.query(
                 `SELECT *
-             FROM order_lines
-             WHERE id = $1`,
+                 FROM order_lines
+                 WHERE id = $1`,
                 [orderlineid]
             );
 
@@ -40,6 +85,7 @@ exports.order_lineController = {
             }
 
             res.json(orderLine);
+
         } catch (err) {
             console.error(err);
 
@@ -47,12 +93,12 @@ exports.order_lineController = {
                 error: err.message
             });
         }
-    }, async addOrder_line(req, res) {
+    },
+    async addOrder_line(req, res) {
         const db = require("../../db_connection");
 
         const {
             id,
-            org_id,
             order_id,
             product_id,
             color,
@@ -64,20 +110,18 @@ exports.order_lineController = {
         try {
             const result = await db.query(
                 `INSERT INTO order_lines (
-                id,
-                org_id,
-                order_id,
-                product_id,
-                color,
-                size,
-                quantity,
-                destination
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING *`,
+                    id,
+                    order_id,
+                    product_id,
+                    color,
+                    size,
+                    quantity,
+                    destination
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING *`,
                 [
                     id,
-                    org_id,
                     order_id,
                     product_id,
                     color,
@@ -91,6 +135,7 @@ exports.order_lineController = {
                 success: true,
                 orderLine: result.rows[0]
             });
+
         } catch (err) {
             console.error(err);
 
@@ -99,7 +144,8 @@ exports.order_lineController = {
                 error: err.message
             });
         }
-    }, async updateOrder_line(req, res) {
+    },
+    async updateOrder_line(req, res) {
         const db = require("../../db_connection");
         const { orderlineid } = req.params;
 
@@ -115,15 +161,15 @@ exports.order_lineController = {
         try {
             const result = await db.query(
                 `UPDATE order_lines
-             SET
-                order_id = $1,
-                product_id = $2,
-                color = $3,
-                size = $4,
-                quantity = $5,
-                destination = $6
-             WHERE id = $7
-             RETURNING *`,
+                 SET
+                    order_id = $1,
+                    product_id = $2,
+                    color = $3,
+                    size = $4,
+                    quantity = $5,
+                    destination = $6
+                 WHERE id = $7
+                 RETURNING *`,
                 [
                     order_id,
                     product_id,
@@ -146,6 +192,7 @@ exports.order_lineController = {
                 success: true,
                 orderLine: result.rows[0]
             });
+
         } catch (err) {
             console.error(err);
 
@@ -154,15 +201,16 @@ exports.order_lineController = {
                 error: err.message
             });
         }
-    }, async deleteOrder_line(req, res) {
+    },
+    async deleteOrder_line(req, res) {
         const db = require("../../db_connection");
         const { orderlineid } = req.params;
 
         try {
             const result = await db.query(
                 `DELETE FROM order_lines
-             WHERE id = $1
-             RETURNING *`,
+                 WHERE id = $1
+                 RETURNING *`,
                 [orderlineid]
             );
 
@@ -178,13 +226,14 @@ exports.order_lineController = {
                 deletedOrderLine: true,
                 orderLine: result.rows[0]
             });
+
         } catch (err) {
             console.error(err);
 
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
                 error: err.message
             });
         }
     }
-}
+};
