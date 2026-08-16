@@ -6,7 +6,6 @@ const path = require("path")
 require("dotenv").config();
 
 const { productRouter } = require("./data management/router/product-router.js")
-const { organisationRouter } = require("./data management/router/organisation-router.js")
 const { userRouter } = require("./data management/router/user-router.js")
 const { supplierRouter } = require("./data management/router/supplier-router.js")
 const { materialRouter } = require("./data management/router/material-router.js")
@@ -49,7 +48,6 @@ app.listen(process.env.PORT || 5173, () => {
 //     res.json(products);
 // });
 app.use("/api/products", productRouter)
-app.use("/api/orgainsations", organisationRouter)
 app.use("/api/users", userRouter)
 app.use("/api/suppliers", supplierRouter)
 app.use("/api/materials", materialRouter)

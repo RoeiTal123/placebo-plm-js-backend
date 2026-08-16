@@ -253,7 +253,7 @@ exports.userController = {
                 role = $4,
                 supplier_id = $5,
                 status = $6,
-                last_login_at = $7,
+                last_login_at = $7
              WHERE id = $8
              RETURNING *`,
         [
