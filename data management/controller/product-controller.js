@@ -84,7 +84,8 @@ exports.productController = {
             selling_price,
             currency,
             notes,
-            status
+            status,
+            image_url
         } = req.body;
 
 
@@ -102,11 +103,12 @@ exports.productController = {
                 selling_price,
                 currency,
                 notes,
-                status
+                status,
+                image_url
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7,
-                $8, $9, $10, $11, $12
+                $8, $9, $10, $11, $12, $13
             )
             RETURNING *`,
                 [
@@ -121,7 +123,8 @@ exports.productController = {
                     selling_price,
                     currency,
                     notes,
-                    status
+                    status,
+                    image_url || null
                 ]
             );
 
@@ -156,7 +159,8 @@ exports.productController = {
             "currency",
             "notes",
             "status",
-            "spam"
+            "spam",
+            "image_url"
         ];
 
         const updates = [];
