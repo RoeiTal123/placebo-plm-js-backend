@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(curl -s http://localhost:5173/api/products)",
-      "Bash(curl -s http://localhost:5173/api/suppliers)"
+      "Bash(curl -s http://localhost:5173/api/suppliers)",
+      "Bash(timeout 15 node index.js)",
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Bash(kill 28440)",
+      "Bash(kill 33286)",
+      "Bash(kill 33604)"
     ]
   }
 }

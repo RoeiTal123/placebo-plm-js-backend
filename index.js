@@ -40,8 +40,19 @@ app.use(cors({
   credentials: true
 }));
 
-app.listen(process.env.PORT || 5173, () => {
+const server = app.listen(process.env.PORT || 5173);
+
+server.on('listening', () => {
     console.log(`Server running on port ${process.env.PORT || 5173}`);
+});
+
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`Port ${process.env.PORT || 5173} is already in use. Kill the conflicting process and restart.`);
+    } else {
+        console.error('Server error:', err.message);
+    }
+    process.exit(1);
 });
 
 // app.get("/api/products", (req, res) => {
