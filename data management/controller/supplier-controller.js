@@ -171,17 +171,18 @@ exports.supplierController = {
             const result = await db.query(
                 `UPDATE suppliers
              SET
-                name = $1,
-                country = $2,
-                contact_name = $3,
-                contact_email = $4,
-                contact_phone = $5,
-                website = $6,
-                lead_time_days = $7,
-                payment_terms = $8,
-                notes = $9,
-                status = $10,
-                spam = $11
+                name = COALESCE($1, name),
+                country = COALESCE($2, country),
+                contact_name = COALESCE($3, contact_name),
+                contact_email = COALESCE($4, contact_email),
+                contact_phone = COALESCE($5, contact_phone),
+                website = COALESCE($6, website),
+                lead_time_days = COALESCE($7, lead_time_days),
+                payment_terms = COALESCE($8, payment_terms),
+                notes = COALESCE($9, notes),
+                status = COALESCE($10, status),
+                spam = COALESCE($11, spam),
+                updated_at = now()
              WHERE id = $12
              RETURNING *`,
                 [
@@ -211,10 +212,11 @@ exports.supplierController = {
                 success: true,
                 supplier: result.rows[0]
             });
+
         } catch (err) {
             console.error(err);
 
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
                 error: err.message
             });
