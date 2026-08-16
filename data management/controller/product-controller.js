@@ -148,54 +148,50 @@ exports.productController = {
         const db = require("../../db_connection");
         const { productid } = req.params;
 
-        const {
-            name,
-            style_code,
-            sku,
-            category,
-            season,
-            colors,
-            sizes,
-            pricing_multiplier,
-            selling_price,
-            currency,
-            notes,
-            status
-        } = req.body;
+        const fields = [
+            "name",
+            "style_code",
+            "sku",
+            "category",
+            "season",
+            "colors",
+            "sizes",
+            "pricing_multiplier",
+            "selling_price",
+            "currency",
+            "notes",
+            "status",
+            "spam"
+        ];
+
+        const updates = [];
+        const values = [];
+
+        for (const field of fields) {
+            if (req.body[field] !== undefined) {
+                values.push(req.body[field]);
+                updates.push(`${field} = $${values.length}`);
+            }
+        }
+
+        if (updates.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "No fields to update"
+            });
+        }
+
+        updates.push("updated_at = now()");
+
+        values.push(productid);
 
         try {
             const result = await db.query(
                 `UPDATE products
-             SET
-                name = $1,
-                style_code = $2,
-                sku = $3,
-                category = $4,
-                season = $5,
-                colors = $6,
-                sizes = $7,
-                pricing_multiplier = $8,
-                selling_price = $9,
-                currency = $10,
-                notes = $11,
-                status = $12
-             WHERE id = $13
+             SET ${updates.join(", ")}
+             WHERE id = $${values.length}
              RETURNING *`,
-                [
-                    name,
-                    style_code,
-                    sku,
-                    category,
-                    season,
-                    colors,
-                    sizes,
-                    pricing_multiplier,
-                    selling_price,
-                    currency,
-                    notes,
-                    status,
-                    productid
-                ]
+                values
             );
 
             if (result.rows.length === 0) {
@@ -205,14 +201,15 @@ exports.productController = {
                 });
             }
 
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 product: result.rows[0]
             });
+
         } catch (err) {
             console.error(err);
 
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
                 error: err.message
             });
@@ -220,7 +217,6 @@ exports.productController = {
     },
     async deleteProduct(req, res) {
         const db = require("../../db_connection");
-
         const { productid } = req.params;
 
         try {

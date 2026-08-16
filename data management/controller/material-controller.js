@@ -83,7 +83,6 @@ exports.materialController = {
         const db = require("../../db_connection");
 
         const {
-            id,
             org_id,
             name,
             color,
@@ -101,7 +100,6 @@ exports.materialController = {
         try {
             const result = await db.query(
                 `INSERT INTO materials (
-                id,
                 org_id,
                 name,
                 color,
@@ -116,12 +114,11 @@ exports.materialController = {
                 status
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7,
-                $8, $9, $10, $11, $12, $13
+                $1, $2, $3, $4, $5, $6,
+                $7, $8, $9, $10, $11, $12
             )
             RETURNING *`,
                 [
-                    id,
                     org_id,
                     name,
                     color,
@@ -141,6 +138,7 @@ exports.materialController = {
                 success: true,
                 material: result.rows[0]
             });
+
         } catch (err) {
             console.error(err);
 
@@ -171,20 +169,21 @@ exports.materialController = {
         try {
             const result = await db.query(
                 `UPDATE materials
-             SET
-                name = $1,
-                color = $2,
-                color_hex = $3,
-                category = $4,
-                supplier_id = $5,
-                unit_cost = $6,
-                currency = $7,
-                unit_of_measure = $8,
-                minimum_order_quantity = $9,
-                notes = $10,
-                status = $11
-             WHERE id = $12
-             RETURNING *`,
+                 SET
+                    name = $1,
+                    color = $2,
+                    color_hex = $3,
+                    category = $4,
+                    supplier_id = $5,
+                    unit_cost = $6,
+                    currency = $7,
+                    unit_of_measure = $8,
+                    minimum_order_quantity = $9,
+                    notes = $10,
+                    status = $11,
+                    updated_at = now()
+                 WHERE id = $12
+                 RETURNING *`,
                 [
                     name,
                     color,
@@ -212,6 +211,7 @@ exports.materialController = {
                 success: true,
                 material: result.rows[0]
             });
+
         } catch (err) {
             console.error(err);
 

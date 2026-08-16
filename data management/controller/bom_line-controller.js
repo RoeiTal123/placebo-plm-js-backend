@@ -5,7 +5,7 @@ exports.bom_lineController = {
         const db = require("../../db_connection");
 
         const {
-            product = "",
+            product_id = "",
             material = "",
             supplier = "",
             material_id = ""
@@ -14,10 +14,10 @@ exports.bom_lineController = {
         const conditions = [];
         const values = [];
 
-        // Product name
-        if (product) {
-            values.push(`%${product}%`);
-            conditions.push(`p.name ILIKE $${values.length}`);
+        // Product filter
+        if (product_id) {
+            values.push(product_id);
+            conditions.push(`b.product_id = $${values.length}`);
         }
 
         // Material name
@@ -62,6 +62,7 @@ exports.bom_lineController = {
             );
 
             res.json(result.rows);
+
         } catch (err) {
             console.error(err);
 
@@ -111,7 +112,6 @@ exports.bom_lineController = {
         const db = require("../../db_connection");
 
         const {
-            id,
             org_id,
             product_id,
             material_id,
@@ -124,7 +124,6 @@ exports.bom_lineController = {
         try {
             const result = await db.query(
                 `INSERT INTO bom_lines (
-                id,
                 org_id,
                 product_id,
                 material_id,
@@ -133,10 +132,9 @@ exports.bom_lineController = {
                 notes,
                 sort_order
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *`,
                 [
-                    id,
                     org_id,
                     product_id,
                     material_id,
@@ -147,14 +145,15 @@ exports.bom_lineController = {
                 ]
             );
 
-            res.status(201).json({
+            return res.status(201).json({
                 success: true,
                 bomLine: result.rows[0]
             });
+
         } catch (err) {
             console.error(err);
 
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
                 error: err.message
             });
@@ -164,7 +163,6 @@ exports.bom_lineController = {
         const { bomlineid } = req.params;
 
         const {
-            product_id,
             material_id,
             quantity_per_unit,
             unit_of_measure,
@@ -176,16 +174,15 @@ exports.bom_lineController = {
             const result = await db.query(
                 `UPDATE bom_lines
              SET
-                product_id = $1,
-                material_id = $2,
-                quantity_per_unit = $3,
-                unit_of_measure = $4,
-                notes = $5,
-                sort_order = $6
-             WHERE id = $7
+                material_id = $1,
+                quantity_per_unit = $2,
+                unit_of_measure = $3,
+                notes = $4,
+                sort_order = $5,
+                updated_at = now()
+             WHERE id = $6
              RETURNING *`,
                 [
-                    product_id,
                     material_id,
                     quantity_per_unit,
                     unit_of_measure,
@@ -206,6 +203,7 @@ exports.bom_lineController = {
                 success: true,
                 bomLine: result.rows[0]
             });
+
         } catch (err) {
             console.error(err);
 
