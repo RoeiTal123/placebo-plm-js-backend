@@ -163,27 +163,29 @@ exports.materialController = {
             unit_of_measure,
             minimum_order_quantity,
             notes,
-            status
+            status,
+            spam
         } = req.body;
 
         try {
             const result = await db.query(
                 `UPDATE materials
-                 SET
-                    name = $1,
-                    color = $2,
-                    color_hex = $3,
-                    category = $4,
-                    supplier_id = $5,
-                    unit_cost = $6,
-                    currency = $7,
-                    unit_of_measure = $8,
-                    minimum_order_quantity = $9,
-                    notes = $10,
-                    status = $11,
-                    updated_at = now()
-                 WHERE id = $12
-                 RETURNING *`,
+             SET
+                name = $1,
+                color = $2,
+                color_hex = $3,
+                category = $4,
+                supplier_id = $5,
+                unit_cost = $6,
+                currency = $7,
+                unit_of_measure = $8,
+                minimum_order_quantity = $9,
+                notes = $10,
+                status = $11,
+                spam = $12,
+                updated_at = now()
+             WHERE id = $13
+             RETURNING *`,
                 [
                     name,
                     color,
@@ -196,6 +198,7 @@ exports.materialController = {
                     minimum_order_quantity,
                     notes,
                     status,
+                    spam,
                     materialid
                 ]
             );

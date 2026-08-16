@@ -5,16 +5,20 @@ exports.supplierController = {
         const db = require("../../db_connection");
 
         const {
-            name = "",
+            search = "",
             status = ""
         } = req.query;
 
         const conditions = [];
         const values = [];
 
-        if (name) {
-            values.push(`%${name}%`);
-            conditions.push(`s.name ILIKE $${values.length}`);
+        if (search) {
+            values.push(`%${search}%`);
+
+            conditions.push(`(
+            s.name ILIKE $${values.length}
+            OR s.country ILIKE $${values.length}
+        )`);
         }
 
         if (status) {
@@ -36,6 +40,7 @@ exports.supplierController = {
             );
 
             res.json(result.rows);
+
         } catch (err) {
             console.error(err);
 
