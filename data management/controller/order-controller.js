@@ -123,9 +123,7 @@ exports.orderController = {
 
         const {
             order_number,
-            name,
             status,
-            factory,
             shipping_destination,
             order_date,
             target_date,
@@ -136,8 +134,15 @@ exports.orderController = {
             customs_type,
             cost_allocation_method,
             notes,
-            spam
+            spam,
+            season,
+            production_country,
+            destination_address
         } = req.body;
+
+        // Accept either frontend field names or backend column names
+        const name = req.body.order_name || req.body.name || null;
+        const factory = req.body.production_factory || req.body.factory || null;
 
         try {
             const result = await db.query(
@@ -156,11 +161,15 @@ exports.orderController = {
                 customs_type,
                 cost_allocation_method,
                 notes,
-                spam
+                spam,
+                season,
+                production_country,
+                destination_address
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8,
-                $9, $10, $11, $12, $13, $14, $15
+                $9, $10, $11, $12, $13, $14, $15,
+                $16, $17, $18
             )
             RETURNING *`,
                 [
@@ -178,7 +187,10 @@ exports.orderController = {
                     customs_type,
                     cost_allocation_method,
                     notes,
-                    spam
+                    spam,
+                    season ?? null,
+                    production_country ?? null,
+                    destination_address ?? null
                 ]
             );
 
@@ -238,9 +250,7 @@ exports.orderController = {
 
             // Normal full update
             const {
-                name,
                 status,
-                factory,
                 shipping_destination,
                 order_date,
                 target_date,
@@ -251,8 +261,15 @@ exports.orderController = {
                 customs_type,
                 cost_allocation_method,
                 notes,
-                spam
+                spam,
+                season,
+                production_country,
+                destination_address
             } = data;
+
+            // Accept either frontend field names or backend column names
+            const name = data.order_name || data.name || null;
+            const factory = data.production_factory || data.factory || null;
 
             const result = await db.query(
                 `UPDATE orders
@@ -270,8 +287,11 @@ exports.orderController = {
                     customs_type = $11,
                     cost_allocation_method = $12,
                     notes = $13,
-                    spam = $14
-                 WHERE id = $15
+                    spam = $14,
+                    season = $15,
+                    production_country = $16,
+                    destination_address = $17
+                 WHERE id = $18
                  RETURNING *`,
                 [
                     name,
@@ -288,6 +308,9 @@ exports.orderController = {
                     cost_allocation_method,
                     notes,
                     spam,
+                    season ?? null,
+                    production_country ?? null,
+                    destination_address ?? null,
                     orderid
                 ]
             );

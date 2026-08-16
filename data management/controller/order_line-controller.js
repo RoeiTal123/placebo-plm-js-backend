@@ -107,6 +107,8 @@ exports.order_lineController = {
             destination
         } = req.body;
 
+        const lineId = id || require('crypto').randomUUID();
+
         try {
             const result = await db.query(
                 `INSERT INTO order_lines (
@@ -121,7 +123,7 @@ exports.order_lineController = {
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING *`,
                 [
-                    id,
+                    lineId,
                     order_id,
                     product_id,
                     color,

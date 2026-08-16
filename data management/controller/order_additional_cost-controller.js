@@ -96,6 +96,8 @@ exports.order_additional_costController = {
             sort_order
         } = req.body;
 
+        const costId = id || require('crypto').randomUUID();
+
         try {
             const result = await db.query(
                 `INSERT INTO order_additional_costs (
@@ -109,12 +111,12 @@ exports.order_additional_costController = {
                 VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING *`,
                 [
-                    id,
+                    costId,
                     order_id,
                     label,
                     amount,
                     cost_type,
-                    sort_order
+                    sort_order ?? 0
                 ]
             );
 
