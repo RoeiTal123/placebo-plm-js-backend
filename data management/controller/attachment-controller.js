@@ -1,28 +1,42 @@
-const { dbConnection } = require("../../db_connection")
+const db = require("../../db_connection");
+const { createClient } = require("@supabase/supabase-js");
 
-const cloudinary = require("cloudinary").v2;
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SECRET_KEY
+);
 
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
-});
+const BUCKET_NAME = "attachments";
 
 const attachmentController = {
-
     async getAttachments(req, res) {
-        const db = require("../../db_connection");
 
         try {
+
             const result = await db.query(
                 `SELECT *
                  FROM attachments
                  ORDER BY created_at DESC`
             );
 
-            res.json(result.rows);
+            const attachments = result.rows.map((attachment) => {
+
+                const {
+                    data: publicUrlData
+                } = supabase.storage
+                    .from(BUCKET_NAME)
+                    .getPublicUrl(attachment.s3_key);
+
+                return {
+                    ...attachment,
+                    url: publicUrlData.publicUrl
+                };
+            });
+
+            res.json(attachments);
 
         } catch (err) {
+
             console.error(err);
 
             res.status(500).json({
@@ -31,9 +45,9 @@ const attachmentController = {
         }
     },
     async getAttachment(req, res) {
-        const db = require("../../db_connection");
 
         try {
+
             const result = await db.query(
                 `SELECT *
                  FROM attachments
@@ -42,14 +56,27 @@ const attachmentController = {
             );
 
             if (result.rows.length === 0) {
+
                 return res.status(404).json({
                     error: "Attachment not found"
                 });
             }
 
-            res.json(result.rows[0]);
+            const attachment = result.rows[0];
+
+            const {
+                data: publicUrlData
+            } = supabase.storage
+                .from(BUCKET_NAME)
+                .getPublicUrl(attachment.s3_key);
+
+            res.json({
+                ...attachment,
+                url: publicUrlData.publicUrl
+            });
 
         } catch (err) {
+
             console.error(err);
 
             res.status(500).json({
@@ -58,20 +85,82 @@ const attachmentController = {
         }
     },
     async addAttachment(req, res) {
-        const db = require("../../db_connection");
 
         try {
-            if (!req.file) {
-                return res.status(400).json({
-                    error: "No file provided"
-                });
-            }
 
             const {
                 entity_type,
                 entity_id,
                 uploaded_by
             } = req.body;
+
+
+            if (
+                !["product", "material"].includes(entity_type)
+            ) {
+
+                return res.status(400).json({
+                    error: "Invalid entity type"
+                });
+            }
+
+
+            const existing = await db.query(
+                `SELECT *
+                 FROM attachments
+                 WHERE entity_type = $1
+                 AND entity_id = $2
+                 LIMIT 1`,
+                [
+                    entity_type,
+                    entity_id
+                ]
+            );
+
+            const oldAttachment =
+                existing.rows[0] || null;
+
+
+            // YES IMAGE + NO IMAGE
+            // REMOVE IMAGE
+
+            if (!req.file) {
+
+                if (!oldAttachment) {
+
+                    return res.status(200).json({
+                        success: true,
+                        message: "No image to remove"
+                    });
+                }
+
+
+                const {
+                    error: storageError
+                } = await supabase.storage
+                    .from(BUCKET_NAME)
+                    .remove([
+                        oldAttachment.s3_key
+                    ]);
+
+
+                if (storageError) {
+                    throw storageError;
+                }
+
+
+                await db.query(
+                    `DELETE FROM attachments
+                     WHERE id = $1`,
+                    [oldAttachment.id]
+                );
+
+
+                return res.status(200).json({
+                    success: true,
+                    message: "Image removed"
+                });
+            }
 
 
             const allowedTypes = [
@@ -82,90 +171,146 @@ const attachmentController = {
             ];
 
             if (!allowedTypes.includes(req.file.mimetype)) {
+
                 return res.status(400).json({
                     error: "Unsupported file type"
                 });
             }
 
 
-            if (!["product", "material"].includes(entity_type)) {
-                return res.status(400).json({
-                    error: "Invalid entity type"
-                });
-            }
-
-
             if (req.file.size > 26214400) {
+
                 return res.status(400).json({
                     error: "File cannot exceed 25 MB"
                 });
             }
 
 
-            // Upload image to Cloudinary
-            const uploadResult = await new Promise(
-                (resolve, reject) => {
+            // YES IMAGE + NEW IMAGE
+            // REMOVE OLD IMAGE
 
-                    const stream =
-                        cloudinary.uploader.upload_stream(
-                            {
-                                folder:
-                                    `placebo/${entity_type}/${entity_id}`,
+            if (oldAttachment) {
 
-                                resource_type: "image"
-                            },
-                            (error, result) => {
+                const {
+                    error: storageError
+                } = await supabase.storage
+                    .from(BUCKET_NAME)
+                    .remove([
+                        oldAttachment.s3_key
+                    ]);
 
-                                if (error) {
-                                    reject(error);
-                                } else {
-                                    resolve(result);
-                                }
-                            }
-                        );
 
-                    stream.end(req.file.buffer);
+                if (storageError) {
+                    throw storageError;
                 }
-            );
+            }
 
 
-            // Cloudinary public ID is stored in s3_key
-            const s3_key = uploadResult.public_id;
+            const fileName =
+                `${Date.now()}-${req.file.originalname}`;
+
+            const storagePath =
+                `${entity_type}/${entity_id}/${fileName}`;
 
 
-            const result = await db.query(
-                `INSERT INTO attachments (
-                    entity_type,
-                    entity_id,
-                    file_name,
-                    s3_key,
-                    content_type,
-                    size_bytes,
-                    uploaded_by
-                )
-                VALUES (
-                    $1, $2, $3, $4,
-                    $5, $6, $7
-                )
-                RETURNING *`,
-                [
-                    entity_type,
-                    entity_id,
-                    req.file.originalname,
-                    s3_key,
-                    req.file.mimetype,
-                    req.file.size,
-                    uploaded_by || null
-                ]
-            );
+            // NO IMAGE + NEW IMAGE
+            // OR
+            // YES IMAGE + NEW IMAGE
+            // UPLOAD NEW IMAGE
+
+            const {
+                error: uploadError
+            } = await supabase.storage
+                .from(BUCKET_NAME)
+                .upload(
+                    storagePath,
+                    req.file.buffer,
+                    {
+                        contentType: req.file.mimetype,
+                        upsert: false
+                    }
+                );
 
 
-            res.status(201).json({
+            if (uploadError) {
+                throw uploadError;
+            }
+
+
+            let result;
+
+            if (oldAttachment) {
+
+                result = await db.query(
+                    `UPDATE attachments
+                     SET
+                        file_name = $1,
+                        s3_key = $2,
+                        content_type = $3,
+                        size_bytes = $4,
+                        uploaded_by = $5
+                     WHERE id = $6
+                     RETURNING *`,
+                    [
+                        req.file.originalname,
+                        storagePath,
+                        req.file.mimetype,
+                        req.file.size,
+                        uploaded_by || null,
+                        oldAttachment.id
+                    ]
+                );
+
+            } else {
+
+                result = await db.query(
+                    `INSERT INTO attachments (
+                        entity_type,
+                        entity_id,
+                        file_name,
+                        s3_key,
+                        content_type,
+                        size_bytes,
+                        uploaded_by
+                    )
+                    VALUES (
+                        $1,
+                        $2,
+                        $3,
+                        $4,
+                        $5,
+                        $6,
+                        $7
+                    )
+                    RETURNING *`,
+                    [
+                        entity_type,
+                        entity_id,
+                        req.file.originalname,
+                        storagePath,
+                        req.file.mimetype,
+                        req.file.size,
+                        uploaded_by || null
+                    ]
+                );
+            }
+
+
+            const {
+                data: publicUrlData
+            } = supabase.storage
+                .from(BUCKET_NAME)
+                .getPublicUrl(storagePath);
+
+
+            res.status(200).json({
+                success: true,
                 ...result.rows[0],
-                url: uploadResult.secure_url
+                url: publicUrlData.publicUrl
             });
 
         } catch (err) {
+
             console.error(err);
 
             res.status(500).json({
@@ -174,21 +319,22 @@ const attachmentController = {
         }
     },
     async updateAttachment(req, res) {
-        const db = require("../../db_connection");
 
         try {
+
             const {
                 file_name,
                 content_type,
                 size_bytes
             } = req.body;
 
+
             const result = await db.query(
                 `UPDATE attachments
                  SET
-                    file_name = $1,
-                    content_type = $2,
-                    size_bytes = $3
+                    file_name = COALESCE($1, file_name),
+                    content_type = COALESCE($2, content_type),
+                    size_bytes = COALESCE($3, size_bytes)
                  WHERE id = $4
                  RETURNING *`,
                 [
@@ -199,15 +345,33 @@ const attachmentController = {
                 ]
             );
 
+
             if (result.rows.length === 0) {
+
                 return res.status(404).json({
                     error: "Attachment not found"
                 });
             }
 
-            res.json(result.rows[0]);
+
+            const attachment = result.rows[0];
+
+            const {
+                data: publicUrlData
+            } = supabase.storage
+                .from(BUCKET_NAME)
+                .getPublicUrl(
+                    attachment.s3_key
+                );
+
+
+            res.json({
+                ...attachment,
+                url: publicUrlData.publicUrl
+            });
 
         } catch (err) {
+
             console.error(err);
 
             res.status(500).json({
@@ -216,12 +380,10 @@ const attachmentController = {
         }
     },
     async deleteAttachment(req, res) {
-        const db = require("../../db_connection");
 
         try {
 
-            // Get attachment from database
-            const attachment = await db.query(
+            const result = await db.query(
                 `SELECT *
                  FROM attachments
                  WHERE id = $1`,
@@ -229,29 +391,32 @@ const attachmentController = {
             );
 
 
-            if (attachment.rows.length === 0) {
+            if (result.rows.length === 0) {
+
                 return res.status(404).json({
                     error: "Attachment not found"
                 });
             }
 
 
+            const attachment = result.rows[0];
+
+
             const {
-                s3_key
-            } = attachment.rows[0];
+                error: storageError
+            } = await supabase.storage
+                .from(BUCKET_NAME)
+                .remove([
+                    attachment.s3_key
+                ]);
 
 
-            // Delete image from Cloudinary
-            await cloudinary.uploader.destroy(
-                s3_key,
-                {
-                    resource_type: "image"
-                }
-            );
+            if (storageError) {
+                throw storageError;
+            }
 
 
-            // Delete database row
-            const result = await db.query(
+            const deleted = await db.query(
                 `DELETE FROM attachments
                  WHERE id = $1
                  RETURNING *`,
@@ -259,9 +424,13 @@ const attachmentController = {
             );
 
 
-            res.json(result.rows[0]);
+            res.json({
+                success: true,
+                attachment: deleted.rows[0]
+            });
 
         } catch (err) {
+
             console.error(err);
 
             res.status(500).json({
