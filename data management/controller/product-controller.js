@@ -1,9 +1,7 @@
-const { dbConnection } = require("../../db_connection")
+const db = require("../../db_connection");
 
 exports.productController = {
     async getProducts(req, res) {
-        const db = require("../../db_connection");
-
         const { search = "", status = "" } = req.query;
 
         const conditions = [];
@@ -11,13 +9,14 @@ exports.productController = {
 
         if (search) {
             values.push(`%${search}%`);
+
             conditions.push(`
-            (
-                p.name ILIKE $${values.length}
-                OR p.style_code ILIKE $${values.length}
-                OR p.sku ILIKE $${values.length}
-            )
-        `);
+                (
+                    p.name ILIKE $${values.length}
+                    OR p.style_code ILIKE $${values.length}
+                    OR p.sku ILIKE $${values.length}
+                )
+            `);
         }
 
         if (status) {
@@ -31,27 +30,30 @@ exports.productController = {
 
         try {
             const result = await db.query(`
-            SELECT *
-            FROM products p
-            ${whereClause}
-        `, values);
+                SELECT *
+                FROM products p
+                ${whereClause}
+            `, values);
 
             res.json(result.rows);
+
         } catch (err) {
             console.error(err);
-            res.status(500).json({ error: err.message });
+
+            res.status(500).json({
+                error: err.message
+            });
         }
     },
     async getProduct(req, res) {
-        const productid = req.params.productid;
-        const db = require("../../db_connection");
+        const { productid } = req.params;
 
         try {
             const result = await db.query(`
-            SELECT *
-            FROM products
-            WHERE id = $1
-        `, [productid]);
+                SELECT *
+                FROM products
+                WHERE id = $1
+            `, [productid]);
 
             const product = result.rows[0];
 
@@ -62,15 +64,16 @@ exports.productController = {
             }
 
             res.json(product);
-        }
-        catch (err) {
+
+        } catch (err) {
             console.error(err);
-            res.status(500).json({ error: err.message });
+
+            res.status(500).json({
+                error: err.message
+            });
         }
     },
     async addProduct(req, res) {
-        const db = require("../../db_connection");
-
 
         const {
             name,
@@ -85,32 +88,34 @@ exports.productController = {
             currency,
             notes,
             status,
-            image_url
+            image_url,
+            attachment_id
         } = req.body;
 
-
         try {
+
             const result = await db.query(
                 `INSERT INTO products (
-                name,
-                style_code,
-                sku,
-                category,
-                season,
-                colors,
-                sizes,
-                pricing_multiplier,
-                selling_price,
-                currency,
-                notes,
-                status,
-                image_url
-            )
-            VALUES (
-                $1, $2, $3, $4, $5, $6, $7,
-                $8, $9, $10, $11, $12, $13
-            )
-            RETURNING *`,
+                    name,
+                    style_code,
+                    sku,
+                    category,
+                    season,
+                    colors,
+                    sizes,
+                    pricing_multiplier,
+                    selling_price,
+                    currency,
+                    notes,
+                    status,
+                    image_url,
+                    attachment_id
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7,
+                    $8, $9, $10, $11, $12, $13, $14
+                )
+                RETURNING *`,
                 [
                     name,
                     style_code,
@@ -124,7 +129,8 @@ exports.productController = {
                     currency,
                     notes,
                     status,
-                    image_url || null
+                    image_url || null,
+                    attachment_id || null
                 ]
             );
 
@@ -134,6 +140,7 @@ exports.productController = {
             });
 
         } catch (err) {
+
             console.error(err);
 
             res.status(500).json({
@@ -143,7 +150,7 @@ exports.productController = {
         }
     },
     async updateProduct(req, res) {
-        const db = require("../../db_connection");
+
         const { productid } = req.params;
 
         const fields = [
@@ -160,16 +167,22 @@ exports.productController = {
             "notes",
             "status",
             "spam",
-            "image_url"
+            "image_url",
+            "attachment_id"
         ];
 
         const updates = [];
         const values = [];
 
         for (const field of fields) {
+
             if (req.body[field] !== undefined) {
+
                 values.push(req.body[field]);
-                updates.push(`${field} = $${values.length}`);
+
+                updates.push(
+                    `${field} = $${values.length}`
+                );
             }
         }
 
@@ -185,15 +198,17 @@ exports.productController = {
         values.push(productid);
 
         try {
+
             const result = await db.query(
                 `UPDATE products
-             SET ${updates.join(", ")}
-             WHERE id = $${values.length}
-             RETURNING *`,
+                 SET ${updates.join(", ")}
+                 WHERE id = $${values.length}
+                 RETURNING *`,
                 values
             );
 
             if (result.rows.length === 0) {
+
                 return res.status(404).json({
                     success: false,
                     message: "Product not found"
@@ -206,6 +221,7 @@ exports.productController = {
             });
 
         } catch (err) {
+
             console.error(err);
 
             return res.status(500).json({
@@ -215,18 +231,20 @@ exports.productController = {
         }
     },
     async deleteProduct(req, res) {
-        const db = require("../../db_connection");
+
         const { productid } = req.params;
 
         try {
+
             const result = await db.query(
                 `DELETE FROM products
-             WHERE id = $1
-             RETURNING *`,
+                 WHERE id = $1
+                 RETURNING *`,
                 [productid]
             );
 
             if (result.rows.length === 0) {
+
                 return res.status(404).json({
                     success: false,
                     message: "Product not found"
@@ -240,6 +258,7 @@ exports.productController = {
             });
 
         } catch (err) {
+
             console.error(err);
 
             return res.status(500).json({
@@ -248,4 +267,4 @@ exports.productController = {
             });
         }
     }
-}
+};

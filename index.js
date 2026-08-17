@@ -15,7 +15,7 @@ const { order_additional_costRouter } = require("./data management/router/order_
 const { order_lineRouter } = require("./data management/router/order_line-router.js")
 const { audit_logRouter } = require("./data management/router/audit_log-router.js")
 const { currencyRouter } = require("./data management/router/currency-router.js")
-// const { attachmentRouter } = require("./data management/router/attachment-router.js")
+const { attachmentRouter } = require("./data management/router/attachment-router.js")
 
 const products = require("../placebo-plm-js-backend/test data/fake products.json");
 
@@ -55,9 +55,6 @@ server.on('error', (err) => {
     process.exit(1);
 });
 
-// app.get("/api/products", (req, res) => {
-//     res.json(products);
-// });
 app.use("/api/products", productRouter)
 app.use("/api/users", userRouter)
 app.use("/api/suppliers", supplierRouter)
@@ -68,4 +65,4 @@ app.use("/api/order_additional_costs", order_additional_costRouter)
 app.use("/api/order_lines", order_lineRouter)
 app.use("/api/audit_logs", audit_logRouter)
 app.use("/api/currencies", currencyRouter)
-// app.use("/api/attachments", attachmentRouter)
+app.use("/api/attachments", attachmentRouter)

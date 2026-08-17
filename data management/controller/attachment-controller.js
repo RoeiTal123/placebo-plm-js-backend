@@ -9,10 +9,16 @@ const supabase = createClient(
 const BUCKET_NAME = "attachments";
 
 const attachmentController = {
-    async getAttachments(req, res) {
+
+    // =========================
+    // GET ALL ATTACHMENTS
+    // =========================
+
+
+    async getAttachments(req, res) 
+    {
 
         try {
-
             const result = await db.query(
                 `SELECT *
                  FROM attachments
@@ -21,15 +27,13 @@ const attachmentController = {
 
             const attachments = result.rows.map((attachment) => {
 
-                const {
-                    data: publicUrlData
-                } = supabase.storage
+                const { data } = supabase.storage
                     .from(BUCKET_NAME)
-                    .getPublicUrl(attachment.s3_key);
+                    .getPublicUrl(attachment.url);
 
                 return {
                     ...attachment,
-                    url: publicUrlData.publicUrl
+                    url: data.publicUrl
                 };
             });
 
@@ -44,8 +48,14 @@ const attachmentController = {
             });
         }
     },
-    async getAttachment(req, res) {
 
+
+    // =========================
+    // GET ONE ATTACHMENT
+    // =========================
+
+    async getAttachment(req, res) 
+    {
         try {
 
             const result = await db.query(
@@ -64,15 +74,13 @@ const attachmentController = {
 
             const attachment = result.rows[0];
 
-            const {
-                data: publicUrlData
-            } = supabase.storage
+            const { data } = supabase.storage
                 .from(BUCKET_NAME)
-                .getPublicUrl(attachment.s3_key);
+                .getPublicUrl(attachment.url);
 
             res.json({
                 ...attachment,
-                url: publicUrlData.publicUrl
+                url: data.publicUrl
             });
 
         } catch (err) {
@@ -84,6 +92,12 @@ const attachmentController = {
             });
         }
     },
+
+
+    // =========================
+    // ADD / REPLACE / REMOVE
+    // =========================
+
     async addAttachment(req, res) {
 
         try {
@@ -95,6 +109,10 @@ const attachmentController = {
             } = req.body;
 
 
+            // =========================
+            // VALIDATE ENTITY
+            // =========================
+
             if (
                 !["product", "material"].includes(entity_type)
             ) {
@@ -104,6 +122,10 @@ const attachmentController = {
                 });
             }
 
+
+            // =========================
+            // CHECK EXISTING IMAGE
+            // =========================
 
             const existing = await db.query(
                 `SELECT *
@@ -121,8 +143,11 @@ const attachmentController = {
                 existing.rows[0] || null;
 
 
+            // =========================
+            // NO NEW IMAGE
+            // =========================
             // YES IMAGE + NO IMAGE
-            // REMOVE IMAGE
+            // -> REMOVE IMAGE
 
             if (!req.file) {
 
@@ -135,13 +160,12 @@ const attachmentController = {
                 }
 
 
-                const {
-                    error: storageError
-                } = await supabase.storage
-                    .from(BUCKET_NAME)
-                    .remove([
-                        oldAttachment.s3_key
-                    ]);
+                const { error: storageError } =
+                    await supabase.storage
+                        .from(BUCKET_NAME)
+                        .remove([
+                            oldAttachment.url
+                        ]);
 
 
                 if (storageError) {
@@ -163,20 +187,33 @@ const attachmentController = {
             }
 
 
+            // =========================
+            // VALIDATE FILE TYPE
+            // =========================
+
             const allowedTypes = [
                 "image/jpeg",
                 "image/png",
                 "image/webp",
-                "image/gif"
+                "image/gif",
+                "application/pdf"
             ];
 
-            if (!allowedTypes.includes(req.file.mimetype)) {
+            if (
+                !allowedTypes.includes(
+                    req.file.mimetype
+                )
+            ) {
 
                 return res.status(400).json({
                     error: "Unsupported file type"
                 });
             }
 
+
+            // =========================
+            // VALIDATE FILE SIZE
+            // =========================
 
             if (req.file.size > 26214400) {
 
@@ -186,18 +223,20 @@ const attachmentController = {
             }
 
 
-            // YES IMAGE + NEW IMAGE
+            // =========================
             // REMOVE OLD IMAGE
+            // =========================
+            // YES IMAGE + NEW IMAGE
+            // -> REMOVE OLD IMAGE
 
             if (oldAttachment) {
 
-                const {
-                    error: storageError
-                } = await supabase.storage
-                    .from(BUCKET_NAME)
-                    .remove([
-                        oldAttachment.s3_key
-                    ]);
+                const { error: storageError } =
+                    await supabase.storage
+                        .from(BUCKET_NAME)
+                        .remove([
+                            oldAttachment.url
+                        ]);
 
 
                 if (storageError) {
@@ -206,6 +245,10 @@ const attachmentController = {
             }
 
 
+            // =========================
+            // CREATE STORAGE PATH
+            // =========================
+
             const fileName =
                 `${Date.now()}-${req.file.originalname}`;
 
@@ -213,29 +256,33 @@ const attachmentController = {
                 `${entity_type}/${entity_id}/${fileName}`;
 
 
-            // NO IMAGE + NEW IMAGE
-            // OR
-            // YES IMAGE + NEW IMAGE
+            // =========================
             // UPLOAD NEW IMAGE
+            // =========================
 
-            const {
-                error: uploadError
-            } = await supabase.storage
-                .from(BUCKET_NAME)
-                .upload(
-                    storagePath,
-                    req.file.buffer,
-                    {
-                        contentType: req.file.mimetype,
-                        upsert: false
-                    }
-                );
+            const { error: uploadError } =
+                await supabase.storage
+                    .from(BUCKET_NAME)
+                    .upload(
+                        storagePath,
+                        req.file.buffer,
+                        {
+                            contentType:
+                                req.file.mimetype,
+
+                            upsert: false
+                        }
+                    );
 
 
             if (uploadError) {
                 throw uploadError;
             }
 
+
+            // =========================
+            // UPDATE EXISTING ROW
+            // =========================
 
             let result;
 
@@ -245,7 +292,7 @@ const attachmentController = {
                     `UPDATE attachments
                      SET
                         file_name = $1,
-                        s3_key = $2,
+                        url = $2,
                         content_type = $3,
                         size_bytes = $4,
                         uploaded_by = $5
@@ -261,14 +308,20 @@ const attachmentController = {
                     ]
                 );
 
-            } else {
+            }
+
+            // =========================
+            // CREATE NEW ROW
+            // =========================
+
+            else {
 
                 result = await db.query(
                     `INSERT INTO attachments (
                         entity_type,
                         entity_id,
                         file_name,
-                        s3_key,
+                        url,
                         content_type,
                         size_bytes,
                         uploaded_by
@@ -296,9 +349,11 @@ const attachmentController = {
             }
 
 
-            const {
-                data: publicUrlData
-            } = supabase.storage
+            // =========================
+            // PUBLIC URL
+            // =========================
+
+            const { data } = supabase.storage
                 .from(BUCKET_NAME)
                 .getPublicUrl(storagePath);
 
@@ -306,7 +361,7 @@ const attachmentController = {
             res.status(200).json({
                 success: true,
                 ...result.rows[0],
-                url: publicUrlData.publicUrl
+                url: data.publicUrl
             });
 
         } catch (err) {
@@ -318,6 +373,12 @@ const attachmentController = {
             });
         }
     },
+
+
+    // =========================
+    // UPDATE ATTACHMENT
+    // =========================
+
     async updateAttachment(req, res) {
 
         try {
@@ -327,6 +388,41 @@ const attachmentController = {
                 content_type,
                 size_bytes
             } = req.body;
+
+
+            // Validate content_type if provided
+
+            const allowedTypes = [
+                "image/jpeg",
+                "image/png",
+                "image/webp",
+                "image/gif",
+                "application/pdf"
+            ];
+
+            if (
+                content_type !== undefined &&
+                !allowedTypes.includes(content_type)
+            ) {
+
+                return res.status(400).json({
+                    error: "Unsupported content type"
+                });
+            }
+
+
+            // Validate size if provided
+
+            if (
+                size_bytes !== undefined &&
+                size_bytes !== null &&
+                size_bytes > 26214400
+            ) {
+
+                return res.status(400).json({
+                    error: "File cannot exceed 25 MB"
+                });
+            }
 
 
             const result = await db.query(
@@ -356,18 +452,16 @@ const attachmentController = {
 
             const attachment = result.rows[0];
 
-            const {
-                data: publicUrlData
-            } = supabase.storage
+            const { data } = supabase.storage
                 .from(BUCKET_NAME)
                 .getPublicUrl(
-                    attachment.s3_key
+                    attachment.url
                 );
 
 
             res.json({
                 ...attachment,
-                url: publicUrlData.publicUrl
+                url: data.publicUrl
             });
 
         } catch (err) {
@@ -379,6 +473,12 @@ const attachmentController = {
             });
         }
     },
+
+
+    // =========================
+    // DELETE ATTACHMENT
+    // =========================
+
     async deleteAttachment(req, res) {
 
         try {
@@ -402,19 +502,26 @@ const attachmentController = {
             const attachment = result.rows[0];
 
 
-            const {
-                error: storageError
-            } = await supabase.storage
-                .from(BUCKET_NAME)
-                .remove([
-                    attachment.s3_key
-                ]);
+            // =========================
+            // DELETE STORAGE FILE
+            // =========================
+
+            const { error: storageError } =
+                await supabase.storage
+                    .from(BUCKET_NAME)
+                    .remove([
+                        attachment.url
+                    ]);
 
 
             if (storageError) {
                 throw storageError;
             }
 
+
+            // =========================
+            // DELETE DATABASE ROW
+            // =========================
 
             const deleted = await db.query(
                 `DELETE FROM attachments
