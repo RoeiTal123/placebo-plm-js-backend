@@ -1,7 +1,6 @@
 const { dbConnection } = require("../../db_connection");
 
 exports.order_additional_costController = {
-
     async getOrder_additional_costs(req, res) {
         const db = require("../../db_connection");
 
@@ -40,7 +39,7 @@ exports.order_additional_costController = {
                  JOIN orders o
                     ON oac.order_id = o.id
                  ${whereClause}
-                 ORDER BY oac.sort_order ASC, oac.id`,
+                 ORDER BY oac.id`,
                 values
             );
 
@@ -90,33 +89,33 @@ exports.order_additional_costController = {
         const {
             id,
             order_id,
-            label,
             amount,
             cost_type,
-            sort_order
+            currency,
+            description
         } = req.body;
 
-        const costId = id || require('crypto').randomUUID();
+        const costId = id || require("crypto").randomUUID();
 
         try {
             const result = await db.query(
                 `INSERT INTO order_additional_costs (
                     id,
                     order_id,
-                    label,
                     amount,
                     cost_type,
-                    sort_order
+                    currency,
+                    description
                 )
                 VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING *`,
                 [
                     costId,
                     order_id,
-                    label,
                     amount,
                     cost_type,
-                    sort_order ?? 0
+                    currency,
+                    description
                 ]
             );
 
@@ -140,10 +139,10 @@ exports.order_additional_costController = {
 
         const {
             order_id,
-            label,
             amount,
             cost_type,
-            sort_order
+            currency,
+            description
         } = req.body;
 
         try {
@@ -151,18 +150,18 @@ exports.order_additional_costController = {
                 `UPDATE order_additional_costs
                  SET
                     order_id = $1,
-                    label = $2,
-                    amount = $3,
-                    cost_type = $4,
-                    sort_order = $5
+                    amount = $2,
+                    cost_type = $3,
+                    currency = $4,
+                    description = $5
                  WHERE id = $6
                  RETURNING *`,
                 [
                     order_id,
-                    label,
                     amount,
                     cost_type,
-                    sort_order,
+                    currency,
+                    description,
                     orderadditionalcostid
                 ]
             );

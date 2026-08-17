@@ -1,7 +1,6 @@
 const { dbConnection } = require("../../db_connection");
 
 exports.orderController = {
-
     async getOrders(req, res) {
         const db = require("../../db_connection");
 
@@ -75,8 +74,8 @@ exports.orderController = {
         try {
             const orderResult = await db.query(
                 `SELECT *
-                 FROM orders
-                 WHERE id = $1`,
+             FROM orders
+             WHERE id = $1`,
                 [orderid]
             );
 
@@ -90,17 +89,17 @@ exports.orderController = {
 
             const linesResult = await db.query(
                 `SELECT *
-                 FROM order_lines
-                 WHERE order_id = $1
-                 ORDER BY id`,
+             FROM order_lines
+             WHERE order_id = $1
+             ORDER BY id`,
                 [orderid]
             );
 
             const costsResult = await db.query(
                 `SELECT *
-                 FROM order_additional_costs
-                 WHERE order_id = $1
-                 ORDER BY sort_order ASC, id`,
+             FROM order_additional_costs
+             WHERE order_id = $1
+             ORDER BY id`,
                 [orderid]
             );
 
@@ -129,10 +128,6 @@ exports.orderController = {
             target_date,
             order_currency,
             shipping_cost,
-            shipping_cost_type,
-            customs_cost,
-            customs_type,
-            cost_allocation_method,
             notes,
             spam,
             season,
@@ -140,39 +135,12 @@ exports.orderController = {
             destination_address
         } = req.body;
 
-        // Accept either frontend field names or backend column names
         const name = req.body.order_name || req.body.name || null;
         const factory = req.body.production_factory || req.body.factory || null;
 
         try {
             const result = await db.query(
                 `INSERT INTO orders (
-                order_number,
-                name,
-                status,
-                factory,
-                shipping_destination,
-                order_date,
-                target_date,
-                order_currency,
-                shipping_cost,
-                shipping_cost_type,
-                customs_cost,
-                customs_type,
-                cost_allocation_method,
-                notes,
-                spam,
-                season,
-                production_country,
-                destination_address
-            )
-            VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8,
-                $9, $10, $11, $12, $13, $14, $15,
-                $16, $17, $18
-            )
-            RETURNING *`,
-                [
                     order_number,
                     name,
                     status,
@@ -182,12 +150,29 @@ exports.orderController = {
                     target_date,
                     order_currency,
                     shipping_cost,
-                    shipping_cost_type,
-                    customs_cost,
-                    customs_type,
-                    cost_allocation_method,
                     notes,
                     spam,
+                    season,
+                    production_country,
+                    destination_address
+                )
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7,
+                    $8, $9, $10, $11, $12, $13, $14
+                )
+                RETURNING *`,
+                [
+                    order_number,
+                    name,
+                    status,
+                    factory,
+                    shipping_destination,
+                    order_date,
+                    target_date ?? null,
+                    order_currency,
+                    shipping_cost ?? 0,
+                    notes ?? null,
+                    spam ?? false,
                     season ?? null,
                     production_country ?? null,
                     destination_address ?? null
@@ -215,8 +200,6 @@ exports.orderController = {
         const data = req.body;
 
         try {
-
-            // Only spam supplied = soft delete
             const keys = Object.keys(data);
 
             if (
@@ -247,8 +230,6 @@ exports.orderController = {
                 });
             }
 
-
-            // Normal full update
             const {
                 status,
                 shipping_destination,
@@ -256,10 +237,6 @@ exports.orderController = {
                 target_date,
                 order_currency,
                 shipping_cost,
-                shipping_cost_type,
-                customs_cost,
-                customs_type,
-                cost_allocation_method,
                 notes,
                 spam,
                 season,
@@ -267,7 +244,6 @@ exports.orderController = {
                 destination_address
             } = data;
 
-            // Accept either frontend field names or backend column names
             const name = data.order_name || data.name || null;
             const factory = data.production_factory || data.factory || null;
 
@@ -282,16 +258,13 @@ exports.orderController = {
                     target_date = $6,
                     order_currency = $7,
                     shipping_cost = $8,
-                    shipping_cost_type = $9,
-                    customs_cost = $10,
-                    customs_type = $11,
-                    cost_allocation_method = $12,
-                    notes = $13,
-                    spam = $14,
-                    season = $15,
-                    production_country = $16,
-                    destination_address = $17
-                 WHERE id = $18
+                    notes = $9,
+                    spam = $10,
+                    season = $11,
+                    production_country = $12,
+                    destination_address = $13,
+                    updated_at = now()
+                 WHERE id = $14
                  RETURNING *`,
                 [
                     name,
@@ -299,15 +272,11 @@ exports.orderController = {
                     factory,
                     shipping_destination,
                     order_date,
-                    target_date,
+                    target_date ?? null,
                     order_currency,
-                    shipping_cost,
-                    shipping_cost_type,
-                    customs_cost,
-                    customs_type,
-                    cost_allocation_method,
-                    notes,
-                    spam,
+                    shipping_cost ?? 0,
+                    notes ?? null,
+                    spam ?? false,
                     season ?? null,
                     production_country ?? null,
                     destination_address ?? null,
