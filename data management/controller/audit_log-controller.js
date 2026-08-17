@@ -13,9 +13,6 @@ exports.audit_logController = {
             dateTo = ""
         } = req.query;
 
-        console.log("from: " + dateFrom)
-        console.log("to: " + dateTo)
-
         const conditions = [];
         const values = [];
 

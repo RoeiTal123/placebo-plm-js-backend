@@ -4,24 +4,24 @@ const argon2 = require("argon2");
 exports.userController = {
 
   async getUsers(req, res) {
-    const db = require("../../db_connection");
-
     try {
       const result = await db.query(
         `SELECT
-                id,
-                email,
-                name,
-                role,
-                supplier_id,
-                status,
-                last_login_at,
-                created_at
-             FROM users
-             ORDER BY created_at DESC`
+          id,
+          username,
+          email,
+          name,
+          role,
+          supplier_id,
+          status,
+          last_login_at,
+          created_at
+         FROM users
+         ORDER BY created_at DESC`
       );
 
       res.json(result.rows);
+
     } catch (err) {
       console.error(err);
 
@@ -29,23 +29,26 @@ exports.userController = {
         error: err.message
       });
     }
-  }, async getUser(req, res) {
-    const db = require("../../db_connection");
+  },
+
+
+  async getUser(req, res) {
     const { userid } = req.params;
 
     try {
       const result = await db.query(
         `SELECT
-                id,
-                email,
-                name,
-                role,
-                supplier_id,
-                status,
-                last_login_at,
-                created_at
-             FROM users
-             WHERE id = $1`,
+          id,
+          username,
+          email,
+          name,
+          role,
+          supplier_id,
+          status,
+          last_login_at,
+          created_at
+         FROM users
+         WHERE id = $1`,
         [userid]
       );
 
@@ -58,6 +61,7 @@ exports.userController = {
       }
 
       res.json(user);
+
     } catch (err) {
       console.error(err);
 
@@ -65,10 +69,10 @@ exports.userController = {
         error: err.message
       });
     }
-  }, async addUser(req, res) {
-    const db = require("../../db_connection");
-    const argon2 = require("argon2");
+  },
 
+
+  async addUser(req, res) {
     const {
       username,
       email,
@@ -84,40 +88,35 @@ exports.userController = {
         });
       }
 
-
-      // Default values for signup
       const role = "viewer";
       const status = "active";
       const supplier_id = null;
 
-      // Hash password
       const password_hash = await argon2.hash(password, {
         type: argon2.argon2id
       });
 
       const result = await db.query(
         `INSERT INTO users (
-                username,
-                email,
-                password_hash,
-                name,
-                role,
-                supplier_id,
-                status
-            )
-            VALUES (
-                $1, $2, $3, $4, $5, $6, $7
-            )
-            RETURNING
-                id,
-                username,
-                email,
-                name,
-                role,
-                supplier_id,
-                status,
-                last_login_at,
-                created_at`,
+          username,
+          email,
+          password_hash,
+          name,
+          role,
+          supplier_id,
+          status
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING
+          id,
+          username,
+          email,
+          name,
+          role,
+          supplier_id,
+          status,
+          last_login_at,
+          created_at`,
         [
           username,
           email,
@@ -142,10 +141,10 @@ exports.userController = {
         error: err.message
       });
     }
-  }, async login(req, res) {
-    const db = require("../../db_connection");
-    const argon2 = require("argon2");
+  },
 
+
+  async login(req, res) {
     const {
       username,
       password
@@ -161,19 +160,19 @@ exports.userController = {
 
       const result = await db.query(
         `SELECT
-                id,
-                username,
-                email,
-                password_hash,
-                name,
-                role,
-                supplier_id,
-                status,
-                last_login_at,
-                created_at
-             FROM users
-             WHERE LOWER(username) = LOWER($1)
-             LIMIT 1`,
+          id,
+          username,
+          email,
+          password_hash,
+          name,
+          role,
+          supplier_id,
+          status,
+          last_login_at,
+          created_at
+         FROM users
+         WHERE LOWER(username) = LOWER($1)
+         LIMIT 1`,
         [username]
       );
 
@@ -205,15 +204,13 @@ exports.userController = {
         });
       }
 
-      // Update last login
       await db.query(
         `UPDATE users
-             SET last_login_at = now()
-             WHERE id = $1`,
+         SET last_login_at = now()
+         WHERE id = $1`,
         [user.id]
       );
 
-      // Never send the password hash to the frontend
       delete user.password_hash;
 
       res.json({
@@ -229,49 +226,124 @@ exports.userController = {
         error: err.message
       });
     }
-  }, async updateUser(req, res) {
-    const db = require("../../db_connection");
+  },
+
+
+  async updateUser(req, res) {
     const { userid } = req.params;
 
     const {
+      username,
       email,
-      password_hash,
+      password,
       name,
       role,
       supplier_id,
       status,
-      last_login_at,
+      last_login_at
     } = req.body;
 
     try {
-      const result = await db.query(
-        `UPDATE users
-             SET
-                email = $1,
-                password_hash = $2,
-                name = $3,
-                role = $4,
-                supplier_id = $5,
-                status = $6,
-                last_login_at = $7
-             WHERE id = $8
-             RETURNING *`,
-        [
-          email,
-          password_hash,
-          name,
-          role,
-          supplier_id,
-          status,
-          last_login_at,
-          userid
-        ]
-      );
+      if (!role) {
+        return res.status(400).json({
+          success: false,
+          error: "Role is required"
+        });
+      }
+
+      if (role === "supplier" && !supplier_id) {
+        return res.status(400).json({
+          success: false,
+          error: "Supplier users must have a supplier_id"
+        });
+      }
+
+      const normalizedSupplierId =
+        role === "supplier"
+          ? supplier_id
+          : null;
+
+      let result;
+
+      if (password) {
+        const password_hash = await argon2.hash(password, {
+          type: argon2.argon2id
+        });
+
+        result = await db.query(
+          `UPDATE users
+           SET
+             username = $1,
+             email = $2,
+             password_hash = $3,
+             name = $4,
+             role = $5,
+             supplier_id = $6,
+             status = $7,
+             last_login_at = $8
+           WHERE id = $9
+           RETURNING
+             id,
+             username,
+             email,
+             name,
+             role,
+             supplier_id,
+             status,
+             last_login_at,
+             created_at`,
+          [
+            username,
+            email,
+            password_hash,
+            name,
+            role,
+            normalizedSupplierId,
+            status,
+            last_login_at,
+            userid
+          ]
+        );
+
+      } else {
+        result = await db.query(
+          `UPDATE users
+           SET
+             username = $1,
+             email = $2,
+             name = $3,
+             role = $4,
+             supplier_id = $5,
+             status = $6,
+             last_login_at = $7
+           WHERE id = $8
+           RETURNING
+             id,
+             username,
+             email,
+             name,
+             role,
+             supplier_id,
+             status,
+             last_login_at,
+             created_at`,
+          [
+            username,
+            email,
+            name,
+            role,
+            normalizedSupplierId,
+            status,
+            last_login_at,
+            userid
+          ]
+        );
+      }
 
       if (result.rows.length === 0) {
         return res.status(404).json({
           success: false,
-          message: "User not found"
+          error: "User not found"
         });
       }
 
@@ -279,6 +351,7 @@ exports.userController = {
         success: true,
         user: result.rows[0]
       });
+
     } catch (err) {
       console.error(err);
 
@@ -287,22 +360,33 @@ exports.userController = {
         error: err.message
       });
     }
-  }, async deleteUser(req, res) {
-    const db = require("../../db_connection");
+  },
+
+
+  async deleteUser(req, res) {
     const { userid } = req.params;
 
     try {
       const result = await db.query(
         `DELETE FROM users
-             WHERE id = $1
-             RETURNING *`,
+         WHERE id = $1
+         RETURNING
+           id,
+           username,
+           email,
+           name,
+           role,
+           supplier_id,
+           status,
+           last_login_at,
+           created_at`,
         [userid]
       );
 
       if (result.rows.length === 0) {
         return res.status(404).json({
           success: false,
-          message: "User not found"
+          error: "User not found"
         });
       }
 
@@ -311,6 +395,7 @@ exports.userController = {
         deletedUser: true,
         user: result.rows[0]
       });
+
     } catch (err) {
       console.error(err);
 

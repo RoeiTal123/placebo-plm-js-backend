@@ -149,74 +149,57 @@ exports.materialController = {
         const db = require("../../db_connection");
         const { materialid } = req.params;
 
-        const {
-            name,
-            color,
-            color_hex,
-            category,
-            supplier_id,
-            unit_cost,
-            currency,
-            unit_of_measure,
-            minimum_order_quantity,
-            notes,
-            status,
-            spam
-        } = req.body;
+        const allowedFields = [
+            'name',
+            'code',
+            'description',
+            'unit',
+            'cost',
+            'currency',
+            'supplier_id',
+            'status',
+            'spam'
+        ];
+
+        const fields = [];
+        const values = [];
+
+        for (const field of allowedFields) {
+            if (req.body[field] !== undefined) {
+                values.push(req.body[field]);
+                fields.push(`${field} = $${values.length}`);
+            }
+        }
+
+        if (fields.length === 0) {
+            return res.status(400).json({
+                error: "No fields to update"
+            });
+        }
+
+        values.push(materialid);
 
         try {
             const result = await db.query(
                 `UPDATE materials
-             SET
-                name = $1,
-                color = $2,
-                color_hex = $3,
-                category = $4,
-                supplier_id = $5,
-                unit_cost = $6,
-                currency = $7,
-                unit_of_measure = $8,
-                minimum_order_quantity = $9,
-                notes = $10,
-                status = $11,
-                spam = $12,
-                updated_at = now()
-             WHERE id = $13
+             SET ${fields.join(', ')}
+             WHERE id = $${values.length}
              RETURNING *`,
-                [
-                    name,
-                    color,
-                    color_hex,
-                    category,
-                    supplier_id,
-                    unit_cost,
-                    currency,
-                    unit_of_measure,
-                    minimum_order_quantity,
-                    notes,
-                    status,
-                    spam,
-                    materialid
-                ]
+                values
             );
 
             if (result.rows.length === 0) {
                 return res.status(404).json({
-                    success: false,
-                    message: "Material not found"
+                    error: "Material not found"
                 });
             }
 
-            res.status(200).json({
-                success: true,
-                material: result.rows[0]
-            });
+            res.json(result.rows[0]);
 
         } catch (err) {
             console.error(err);
 
             res.status(500).json({
-                success: false,
                 error: err.message
             });
         }

@@ -197,91 +197,67 @@ exports.orderController = {
         const db = require("../../db_connection");
         const { orderid } = req.params;
 
-        const data = req.body;
+        const fields = [
+            "name",
+            "status",
+            "factory",
+            "shipping_destination",
+            "order_date",
+            "target_date",
+            "order_currency",
+            "shipping_cost",
+            "notes",
+            "spam",
+            "season",
+            "production_country",
+            "destination_address"
+        ];
+
+        const updates = [];
+        const values = [];
+
+        for (const field of fields) {
+            if (req.body[field] !== undefined) {
+                values.push(req.body[field]);
+                updates.push(`${field} = $${values.length}`);
+            }
+        }
+
+        // Support frontend names
+        if (
+            req.body.order_name !== undefined &&
+            req.body.name === undefined
+        ) {
+            values.push(req.body.order_name);
+            updates.push(`name = $${values.length}`);
+        }
+
+        if (
+            req.body.production_factory !== undefined &&
+            req.body.factory === undefined
+        ) {
+            values.push(req.body.production_factory);
+            updates.push(`factory = $${values.length}`);
+        }
+
+        if (updates.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "No fields to update"
+            });
+        }
+
+        updates.push("updated_at = now()");
+
+        values.push(orderid);
 
         try {
-            const keys = Object.keys(data);
-
-            if (
-                keys.length === 1 &&
-                keys[0] === "spam"
-            ) {
-                const result = await db.query(
-                    `UPDATE orders
-                     SET spam = $1
-                     WHERE id = $2
-                     RETURNING *`,
-                    [
-                        data.spam,
-                        orderid
-                    ]
-                );
-
-                if (result.rows.length === 0) {
-                    return res.status(404).json({
-                        success: false,
-                        message: "Order not found"
-                    });
-                }
-
-                return res.status(200).json({
-                    success: true,
-                    order: result.rows[0]
-                });
-            }
-
-            const {
-                status,
-                shipping_destination,
-                order_date,
-                target_date,
-                order_currency,
-                shipping_cost,
-                notes,
-                spam,
-                season,
-                production_country,
-                destination_address
-            } = data;
-
-            const name = data.order_name || data.name || null;
-            const factory = data.production_factory || data.factory || null;
-
             const result = await db.query(
                 `UPDATE orders
-                 SET
-                    name = $1,
-                    status = $2,
-                    factory = $3,
-                    shipping_destination = $4,
-                    order_date = $5,
-                    target_date = $6,
-                    order_currency = $7,
-                    shipping_cost = $8,
-                    notes = $9,
-                    spam = $10,
-                    season = $11,
-                    production_country = $12,
-                    destination_address = $13,
-                    updated_at = now()
-                 WHERE id = $14
-                 RETURNING *`,
-                [
-                    name,
-                    status,
-                    factory,
-                    shipping_destination,
-                    order_date,
-                    target_date ?? null,
-                    order_currency,
-                    shipping_cost ?? 0,
-                    notes ?? null,
-                    spam ?? false,
-                    season ?? null,
-                    production_country ?? null,
-                    destination_address ?? null,
-                    orderid
-                ]
+             SET ${updates.join(", ")}
+             WHERE id = $${values.length}
+             RETURNING *`,
+                values
             );
 
             if (result.rows.length === 0) {
@@ -299,7 +275,7 @@ exports.orderController = {
         } catch (err) {
             console.error(err);
 
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
                 error: err.message
             });
