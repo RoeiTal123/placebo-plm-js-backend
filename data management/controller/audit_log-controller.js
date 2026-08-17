@@ -8,63 +8,124 @@ exports.audit_logController = {
             search = "",
             user = "",
             action = "",
-            entity_type = ""
+            entity_type = "",
+            dateFrom = "",
+            dateTo = ""
         } = req.query;
+
+        console.log("from: " + dateFrom)
+        console.log("to: " + dateTo)
 
         const conditions = [];
         const values = [];
 
-        // Search filter
+        // Search
         if (search) {
             values.push(`%${search.toLowerCase()}%`);
+            const param = `$${values.length}`;
 
             conditions.push(`
             (
-                LOWER(a.id::text) LIKE $${values.length}
-                OR LOWER(a.entity_type) LIKE $${values.length}
-                OR LOWER(a.action) LIKE $${values.length}
+                LOWER(a.id::text) LIKE ${param}
+                OR LOWER(a.entity_type) LIKE ${param}
+                OR LOWER(a.action) LIKE ${param}
+                OR LOWER(COALESCE(u.username, '')) LIKE ${param}
             )
         `);
         }
 
-        // User filter
+        // User
         if (user) {
             values.push(user);
-            conditions.push(`a.user_id = $${values.length}`);
+
+            conditions.push(
+                `LOWER(a.user_id::text) = LOWER($${values.length})`
+            );
         }
 
-        // Entity type filter
+        // Entity type
         if (entity_type) {
             values.push(entity_type.toLowerCase());
-            conditions.push(`LOWER(a.entity_type) = $${values.length}`);
+
+            conditions.push(
+                `LOWER(a.entity_type) = $${values.length}`
+            );
         }
 
-        // Action filter
+        // Action
         if (action) {
             const actionValue = action.toLowerCase();
 
-            if (actionValue === "user role changed") {
+            if (actionValue === "restore") {
+                conditions.push(`
+                LOWER(a.action) = 'restore'
+            `);
+
+            } else if (actionValue === "hard_delete") {
+                conditions.push(`
+                LOWER(a.action) = 'hard_delete'
+            `);
+
+            } else if (actionValue.endsWith("role changed")) {
                 conditions.push(`
                 LOWER(a.entity_type) = 'user'
                 AND LOWER(a.action) = 'update'
             `);
+
             } else {
                 const parts = actionValue.split(" ");
-
                 const actionWord = parts.pop();
-                const entityType = parts.join(" ");
+                const entityName = parts.join(" ");
 
-                values.push(entityType);
-                const entityValue = `$${values.length}`;
+                if (actionWord === "created") {
+                    values.push(entityName);
 
-                values.push(actionWord);
-                const actionValueParam = `$${values.length}`;
+                    conditions.push(`
+                    LOWER(a.entity_type) = $${values.length}
+                    AND LOWER(a.action) = 'create'
+                `);
 
-                conditions.push(`
-                LOWER(a.entity_type) = ${entityValue}
-                AND LOWER(a.action) = ${actionValueParam}
-            `);
+                } else if (actionWord === "deleted") {
+                    values.push(entityName);
+
+                    conditions.push(`
+                    LOWER(a.entity_type) = $${values.length}
+                    AND LOWER(a.action) = 'delete'
+                `);
+
+                } else if (actionWord === "updated") {
+                    values.push(entityName);
+
+                    conditions.push(`
+                    LOWER(a.entity_type) = $${values.length}
+                    AND LOWER(a.action) = 'update'
+                `);
+
+                } else if (actionWord === "edited") {
+                    values.push(entityName);
+
+                    conditions.push(`
+                    LOWER(a.entity_type) = $${values.length}
+                    AND LOWER(a.action) = 'update'
+                    AND LOWER(a.entity_type) <> 'order'
+                    AND LOWER(a.entity_type) <> 'user'
+                `);
+
+                } else {
+                    conditions.push(`FALSE`);
+                }
             }
+        }
+
+        // Date from
+        if (dateFrom) {
+            values.push(dateFrom);
+            conditions.push(`a.created_at >= $${values.length}::timestamptz`);
+        }
+
+        if (dateTo) {
+            values.push(dateTo);
+            conditions.push(`a.created_at <= $${values.length}::timestamptz`);
         }
 
         const whereClause = conditions.length
@@ -73,14 +134,22 @@ exports.audit_logController = {
 
         try {
             const result = await db.query(
-                `SELECT a.*
-             FROM audit_logs a
-             ${whereClause}
-             ORDER BY a.created_at DESC`,
+                `
+            SELECT
+                a.*,
+                u.username AS username,
+                u.role AS role
+            FROM audit_logs a
+            LEFT JOIN users u
+                ON a.user_id = u.id
+            ${whereClause}
+            ORDER BY a.created_at DESC
+            `,
                 values
             );
 
             res.json(result.rows);
+
         } catch (err) {
             console.error(err);
 
