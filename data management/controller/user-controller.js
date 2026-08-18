@@ -2,7 +2,6 @@ const db = require("../../db_connection");
 const argon2 = require("argon2");
 
 exports.userController = {
-
   async getUsers(req, res) {
     try {
       const result = await db.query(
@@ -13,9 +12,9 @@ exports.userController = {
           name,
           role,
           supplier_id,
-          status,
           last_login_at,
-          created_at
+          created_at,
+          approved
          FROM users
          ORDER BY created_at DESC`
       );
@@ -30,8 +29,6 @@ exports.userController = {
       });
     }
   },
-
-
   async getUser(req, res) {
     const { userid } = req.params;
 
@@ -44,9 +41,9 @@ exports.userController = {
           name,
           role,
           supplier_id,
-          status,
           last_login_at,
-          created_at
+          created_at,
+          approved
          FROM users
          WHERE id = $1`,
         [userid]
@@ -70,8 +67,6 @@ exports.userController = {
       });
     }
   },
-
-
   async addUser(req, res) {
     const {
       username,
@@ -89,8 +84,8 @@ exports.userController = {
       }
 
       const role = "viewer";
-      const status = "active";
       const supplier_id = null;
+      const approved = false;
 
       const password_hash = await argon2.hash(password, {
         type: argon2.argon2id
@@ -104,7 +99,7 @@ exports.userController = {
           name,
           role,
           supplier_id,
-          status
+          approved
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING
@@ -114,9 +109,9 @@ exports.userController = {
           name,
           role,
           supplier_id,
-          status,
           last_login_at,
-          created_at`,
+          created_at,
+          approved`,
         [
           username,
           email,
@@ -124,7 +119,7 @@ exports.userController = {
           name,
           role,
           supplier_id,
-          status
+          approved
         ]
       );
 
@@ -142,8 +137,6 @@ exports.userController = {
       });
     }
   },
-
-
   async login(req, res) {
     const {
       username,
@@ -167,9 +160,9 @@ exports.userController = {
           name,
           role,
           supplier_id,
-          status,
           last_login_at,
-          created_at
+          created_at,
+          approved
          FROM users
          WHERE LOWER(username) = LOWER($1)
          LIMIT 1`,
@@ -185,13 +178,6 @@ exports.userController = {
 
       const user = result.rows[0];
 
-      if (user.status !== "active") {
-        return res.status(403).json({
-          success: false,
-          error: "User account is not active"
-        });
-      }
-
       const validPassword = await argon2.verify(
         user.password_hash,
         password
@@ -201,6 +187,13 @@ exports.userController = {
         return res.status(401).json({
           success: false,
           error: "Invalid username or password"
+        });
+      }
+
+      if (!user.approved) {
+        return res.status(403).json({
+          success: false,
+          error: "Please get account approved by the owner"
         });
       }
 
@@ -227,8 +220,6 @@ exports.userController = {
       });
     }
   },
-
-
   async updateUser(req, res) {
     const { userid } = req.params;
 
@@ -239,8 +230,8 @@ exports.userController = {
       name,
       role,
       supplier_id,
-      status,
-      last_login_at
+      last_login_at,
+      approved
     } = req.body;
 
     try {
@@ -279,8 +270,8 @@ exports.userController = {
              name = $4,
              role = $5,
              supplier_id = $6,
-             status = $7,
-             last_login_at = $8
+             last_login_at = $7,
+             approved = $8
            WHERE id = $9
            RETURNING
              id,
@@ -289,9 +280,9 @@ exports.userController = {
              name,
              role,
              supplier_id,
-             status,
              last_login_at,
-             created_at`,
+             created_at,
+             approved`,
           [
             username,
             email,
@@ -299,8 +290,8 @@ exports.userController = {
             name,
             role,
             normalizedSupplierId,
-            status,
             last_login_at,
+            approved,
             userid
           ]
         );
@@ -314,8 +305,8 @@ exports.userController = {
              name = $3,
              role = $4,
              supplier_id = $5,
-             status = $6,
-             last_login_at = $7
+             last_login_at = $6,
+             approved = $7
            WHERE id = $8
            RETURNING
              id,
@@ -324,17 +315,17 @@ exports.userController = {
              name,
              role,
              supplier_id,
-             status,
              last_login_at,
-             created_at`,
+             created_at,
+             approved`,
           [
             username,
             email,
             name,
             role,
             normalizedSupplierId,
-            status,
             last_login_at,
+            approved,
             userid
           ]
         );
@@ -361,8 +352,6 @@ exports.userController = {
       });
     }
   },
-
-
   async deleteUser(req, res) {
     const { userid } = req.params;
 
@@ -377,9 +366,9 @@ exports.userController = {
            name,
            role,
            supplier_id,
-           status,
            last_login_at,
-           created_at`,
+           created_at,
+           approved`,
         [userid]
       );
 
