@@ -1,107 +1,151 @@
 const db = require("../../db_connection");
 
 exports.currencyController = {
+
+    // =========================
+    // GET CURRENCIES
+    // =========================
     async getCurrencies(req, res) {
         try {
-            const response = await fetch(
-                "https://api.frankfurter.dev/v2/rates?base=EUR&quotes=EUR,SEK,USD,GBP"
-            );
 
-            if (!response.ok) {
-                throw new Error("Failed to retrieve currency rates");
+            // Check when rates were last updated
+            const latestResult = await db.query(`
+                SELECT MAX(rate_date) AS latest_date
+                FROM fx_rates
+            `);
+
+            const latestDate =
+                latestResult.rows[0].latest_date;
+
+            const today = new Date();
+            const todayDate =
+                today.toISOString().split("T")[0];
+
+            let needsUpdate = true;
+
+            if (latestDate) {
+                const latest = new Date(latestDate);
+                const current = new Date(todayDate);
+
+                const difference =
+                    current.getTime() - latest.getTime();
+
+                const oneDay =
+                    24 * 60 * 60 * 1000;
+
+                needsUpdate =
+                    difference >= oneDay;
             }
 
-            const rates = await response.json();
+            // =========================
+            // GET FRESH DATA IF NEEDED
+            // =========================
 
-            res.json(rates);
+            if (needsUpdate) {
+
+                const response = await fetch(
+                    "https://api.frankfurter.dev/v2/rates?base=EUR"
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Failed to retrieve currency rates"
+                    );
+                }
+
+                const rates = await response.json();
+
+                for (const item of rates) {
+
+                    await db.query(
+                        `
+                        INSERT INTO fx_rates (
+                            base_currency,
+                            quote_currency,
+                            rate,
+                            rate_date,
+                            source
+                        )
+                        VALUES (
+                            $1,
+                            $2,
+                            $3,
+                            $4,
+                            $5
+                        )
+                        `,
+                        [
+                            item.base,
+                            item.quote,
+                            item.rate,
+                            todayDate,
+                            "ecb"
+                        ]
+                    );
+                }
+            }
+
+            // =========================
+            // RETURN DATABASE DATA
+            // =========================
+
+            const result = await db.query(`
+                SELECT
+                    id,
+                    base_currency,
+                    quote_currency,
+                    rate,
+                    rate_date,
+                    source,
+                    created_by
+                FROM fx_rates
+                ORDER BY quote_currency
+            `);
+
+            res.json(result.rows);
+
         } catch (err) {
-            console.error("Currency API Error:", err);
+
+            console.error(
+                "Currency API Error:",
+                err
+            );
 
             res.status(500).json({
                 success: false,
                 error: err.message
             });
         }
-    }
-    // async getCurrencies(req, res) {
-    //     const db = require("../../db_connection");
+    },
 
-    //     try {
-    //         const latest = await db.query(`
-    //         SELECT MAX(last_updated) AS last_updated
-    //         FROM currency_rates
-    //     `);
 
-    //         const lastUpdated = latest.rows[0].last_updated;
+    // =========================
+    // GET ONE CURRENCY
+    // =========================
+    async getCurrency(req, res) {
 
-    //         const needsUpdate =
-    //             !lastUpdated ||
-    //             Date.now() - new Date(lastUpdated).getTime() >= 24 * 60 * 60 * 1000;
-
-    //         if (needsUpdate) {
-    //             // Retrieve fresh rates from the external currency API
-    //             const rates = await this.retrieveCurrencyData("EUR");
-
-    //             for (const item of rates) {
-    //                 await db.query(
-    //                     `INSERT INTO currency_rates (
-    //             currency,
-    //             compared_to_base_currency,
-    //             rate,
-    //             last_updated
-    //         )
-    //         VALUES ($1, $2, $3, NOW())
-    //         ON CONFLICT (currency, compared_to_base_currency)
-    //         DO UPDATE SET
-    //             rate = EXCLUDED.rate,
-    //             last_updated = NOW()`,
-    //                     [
-    //                         item.quote,
-    //                         item.base,
-    //                         item.rate
-    //                     ]
-    //                 );
-    //             }
-    //         }
-
-    //         const result = await db.query(`
-    //         SELECT
-    //             id,
-    //             currency,
-    //             compared_to_base_currency,
-    //             rate,
-    //             last_updated
-    //         FROM currency_rates
-    //         ORDER BY currency
-    //     `);
-
-    //         res.json(result.rows);
-
-    //     } catch (err) {
-    //         console.error(err);
-
-    //         res.status(500).json({
-    //             success: false,
-    //             error: err.message
-    //         });
-    //     }
-    // }
-    , async getCurrency(req, res) {
-        const db = require("../../db_connection");
-
-        const { currency } = req.params;
+        const {
+            currency
+        } = req.params;
 
         try {
+
             const result = await db.query(
-                `SELECT
-                id,
-                currency,
-                compared_to_base_currency,
-                rate,
-                last_updated
-             FROM currency_rates
-             WHERE UPPER(currency) = UPPER($1)
-             LIMIT 1`,
+                `
+                SELECT
+                    id,
+                    base_currency,
+                    quote_currency,
+                    rate,
+                    rate_date,
+                    source,
+                    created_by
+                FROM fx_rates
+                WHERE UPPER(quote_currency) =
+                      UPPER($1)
+                ORDER BY rate_date DESC
+                LIMIT 1
+                `,
                 [currency]
             );
 
@@ -115,6 +159,7 @@ exports.currencyController = {
             res.json(result.rows[0]);
 
         } catch (err) {
+
             console.error(err);
 
             res.status(500).json({
@@ -122,51 +167,74 @@ exports.currencyController = {
                 error: err.message
             });
         }
-    }, async updateCurrencies(req, res) {
-        const db = require("../../db_connection");
+    },
+
+
+    // =========================
+    // UPDATE CURRENCIES
+    // =========================
+    async updateCurrencies(req, res) {
 
         try {
+
             const response = await fetch(
                 "https://api.frankfurter.dev/v2/rates?base=EUR"
             );
 
             if (!response.ok) {
-                throw new Error("Failed to retrieve currency rates");
+                throw new Error(
+                    "Failed to retrieve currency rates"
+                );
             }
 
             const rates = await response.json();
 
+            const today =
+                new Date()
+                    .toISOString()
+                    .split("T")[0];
+
             for (const item of rates) {
+
                 await db.query(
-                    `INSERT INTO currency_rates (
-                    currency,
-                    compared_to_base_currency,
-                    rate,
-                    last_updated
-                )
-                VALUES ($1, $2, $3, NOW())
-                ON CONFLICT (currency, compared_to_base_currency)
-                DO UPDATE SET
-                    rate = EXCLUDED.rate,
-                    last_updated = NOW()`,
+                    `
+                    INSERT INTO fx_rates (
+                        base_currency,
+                        quote_currency,
+                        rate,
+                        rate_date,
+                        source
+                    )
+                    VALUES (
+                        $1,
+                        $2,
+                        $3,
+                        $4,
+                        $5
+                    )
+                    `,
                     [
-                        item.quote,
                         item.base,
-                        item.rate
+                        item.quote,
+                        item.rate,
+                        today,
+                        "ecb"
                     ]
                 );
             }
 
             const result = await db.query(`
-            SELECT
-                id,
-                currency,
-                compared_to_base_currency,
-                rate,
-                last_updated
-            FROM currency_rates
-            ORDER BY currency
-        `);
+                SELECT
+                    id,
+                    base_currency,
+                    quote_currency,
+                    rate,
+                    rate_date,
+                    source,
+                    created_by
+                FROM fx_rates
+                ORDER BY quote_currency
+            `);
 
             res.json({
                 success: true,
@@ -175,6 +243,7 @@ exports.currencyController = {
             });
 
         } catch (err) {
+
             console.error(err);
 
             res.status(500).json({
@@ -182,16 +251,27 @@ exports.currencyController = {
                 error: err.message
             });
         }
-    }, async deleteCurrency(req, res) {
-        const db = require("../../db_connection");
+    },
 
-        const { currency } = req.params;
+
+    // =========================
+    // DELETE CURRENCY
+    // =========================
+    async deleteCurrency(req, res) {
+
+        const {
+            currency
+        } = req.params;
 
         try {
+
             const result = await db.query(
-                `DELETE FROM currency_rates
-             WHERE UPPER(currency) = UPPER($1)
-             RETURNING *`,
+                `
+                DELETE FROM fx_rates
+                WHERE UPPER(quote_currency) =
+                      UPPER($1)
+                RETURNING *
+                `,
                 [currency]
             );
 
@@ -204,10 +284,12 @@ exports.currencyController = {
 
             res.json({
                 success: true,
-                deletedCurrency: result.rows[0]
+                deletedCurrency:
+                    result.rows[0]
             });
 
         } catch (err) {
+
             console.error(err);
 
             res.status(500).json({
@@ -215,16 +297,27 @@ exports.currencyController = {
                 error: err.message
             });
         }
-    }, async retrieveCurrencyData(req, res) {
+    },
+
+
+    // =========================
+    // RETRIEVE CURRENCY DATA
+    // =========================
+    async retrieveCurrencyData(req, res) {
+
         try {
+
             const response = await fetch(
                 "https://api.frankfurter.dev/v2/rates?base=EUR"
             );
 
             if (!response.ok) {
-                return res.status(response.status).json({
+                return res.status(
+                    response.status
+                ).json({
                     success: false,
-                    error: "Failed to retrieve currency data"
+                    error:
+                        "Failed to retrieve currency data"
                 });
             }
 
@@ -236,12 +329,17 @@ exports.currencyController = {
             });
 
         } catch (err) {
-            console.error("Currency API Error:", err);
+
+            console.error(
+                "Currency API Error:",
+                err
+            );
 
             res.status(500).json({
                 success: false,
-                error: "Failed to retrieve currency data"
+                error:
+                    "Failed to retrieve currency data"
             });
         }
     }
-}
+};
